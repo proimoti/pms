@@ -25,4 +25,9 @@ class CompanyFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
         ];
     }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => ['is_active' => false]);
+    }
 }

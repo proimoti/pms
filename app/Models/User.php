@@ -13,15 +13,16 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 
 // Ролята, фирмата и правата нарочно не са във Fillable:
 // задават се изрично, не идват направо от попълнена форма.
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use BelongsToCompany, HasFactory, Notifiable;
+    use BelongsToCompany, HasFactory, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -38,11 +39,18 @@ class User extends Authenticatable
             'property_scope' => PropertyScope::class,
             'access_level' => AccessLevel::class,
             'can_view_sensitive' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
     public function isAppAdmin(): bool
     {
         return $this->role === Role::AppAdmin;
+    }
+
+    /** Вторият фактор е задължителен за администратора на приложението и служителите. */
+    public function requiresTwoFactor(): bool
+    {
+        return in_array($this->role, [Role::AppAdmin, Role::Staff], true);
     }
 }

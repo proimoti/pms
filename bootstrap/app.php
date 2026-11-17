@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnforceTwoFactor;
+use App\Http\Middleware\EnsureCompanyIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,7 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // При всяка заявка: първо активна фирма, после задължителен втори фактор.
+        $middleware->web(append: [
+            EnsureCompanyIsActive::class,
+            EnforceTwoFactor::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -78,7 +78,8 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    // Интерфейсът е винаги на български (CLAUDE.md), независимо от .env.
+    'locale' => 'bg',
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 

@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Fortify;
 
 /**
  * @extends Factory<User>
@@ -43,6 +44,30 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'company_id' => null,
             'role' => Role::AppAdmin,
+        ]);
+    }
+
+    public function owner(): static
+    {
+        return $this->state(fn (array $attributes) => ['role' => Role::Owner]);
+    }
+
+    public function tenant(): static
+    {
+        return $this->state(fn (array $attributes) => ['role' => Role::Tenant]);
+    }
+
+    /**
+     * Включен и потвърден втори фактор с даден таен ключ.
+     *
+     * @param  list<string>  $recoveryCodes
+     */
+    public function withTwoFactor(string $secret, array $recoveryCodes = ['izmislen-kod-9999']): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'two_factor_secret' => Fortify::currentEncrypter()->encrypt($secret),
+            'two_factor_recovery_codes' => Fortify::currentEncrypter()->encrypt(json_encode($recoveryCodes)),
+            'two_factor_confirmed_at' => now(),
         ]);
     }
 
