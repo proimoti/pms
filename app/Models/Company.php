@@ -19,7 +19,8 @@ class Company extends Model
     protected static function booted(): void
     {
         // Потребителят вижда само своята фирма (тук връзката е по id).
-        static::addGlobalScope(new CompanyScope('id'));
+        // Администраторът на приложението вижда всички фирми.
+        static::addGlobalScope(new CompanyScope('id', appAdminSeesAll: true));
     }
 
     protected function casts(): array

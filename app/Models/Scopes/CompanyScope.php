@@ -12,29 +12,46 @@ use Illuminate\Support\Facades\Auth;
 /**
  * Автоматичен филтър: влезлият потребител вижда само редовете на своята фирма.
  *
- * Без филтър са само администраторът на приложението и случаите, в които
- * никой не е влязъл (команди и начални данни). Страниците с данни изискват вход.
+ * Администраторът на приложението вижда всички фирми и потребители, но не
+ * вижда регистъра (PROJECT.md, т. 2): за него таблиците на регистъра са празни.
+ * Без филтър е само случаят, в който никой не е влязъл (команди и начални данни).
+ * Страниците с данни изискват вход.
  */
 final class CompanyScope implements Scope
 {
-    public function __construct(private readonly string $column = 'company_id') {}
+    public function __construct(
+        private readonly string $column = 'company_id',
+        private readonly bool $appAdminSeesAll = false,
+    ) {}
 
     public function apply(Builder $builder, Model $model): void
     {
-        $companyId = self::restrictedCompanyId();
-
-        if ($companyId !== null) {
-            $builder->where($model->qualifyColumn($this->column), '=', $companyId);
+        // hasUser() не зарежда потребителя, така че самото влизане не се филтрира.
+        if (! Auth::hasUser()) {
+            return;
         }
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        if ($user->role === Role::AppAdmin) {
+            if (! $this->appAdminSeesAll) {
+                $builder->whereRaw('0 = 1');
+            }
+
+            return;
+        }
+
+        // Потребител без фирма (не би трябвало да съществува) получава 0, т.е. не вижда нищо.
+        $builder->where($model->qualifyColumn($this->column), '=', $user->company_id ?? 0);
     }
 
     /**
-     * Фирмата, до която е ограничен влезлият потребител, или null, ако няма ограничение.
-     * Потребител без фирма, който не е администратор, получава 0, т.е. не вижда нищо.
+     * Фирмата, до която е ограничен влезлият потребител, или null, ако няма ограничение
+     * (никой не е влязъл или е администраторът на приложението).
      */
     public static function restrictedCompanyId(): ?int
     {
-        // hasUser() не зарежда потребителя, така че самото влизане не се филтрира.
         if (! Auth::hasUser()) {
             return null;
         }
@@ -47,5 +64,10 @@ final class CompanyScope implements Scope
         }
 
         return $user->company_id ?? 0;
+    }
+
+    public static function currentUserIsAppAdmin(): bool
+    {
+        return Auth::hasUser() && Auth::user()->role === Role::AppAdmin;
     }
 }

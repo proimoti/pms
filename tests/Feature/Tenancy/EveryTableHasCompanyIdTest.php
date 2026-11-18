@@ -76,6 +76,31 @@ class EveryTableHasCompanyIdTest extends TestCase
         }
     }
 
+    /**
+     * Връзка между две фирмени таблици включва и фирмата (PROJECT.md, т. 2 „Регистър“),
+     * за да не може запис да сочи към запис на друга фирма.
+     */
+    public function test_every_link_between_company_tables_includes_company_id(): void
+    {
+        $companyTables = array_values(array_filter($this->tables(), fn ($t) => Schema::hasColumn($t, 'company_id')));
+        $this->assertContains('brokers', $companyTables, 'Проверката трябва да има поне една таблица от регистъра.');
+
+        $bad = [];
+        foreach ($companyTables as $table) {
+            foreach (Schema::getForeignKeys($table) as $fk) {
+                $pointsToCompanyTable = in_array($fk['foreign_table'], $companyTables, true);
+                $includesCompany = in_array('company_id', $fk['columns'], true)
+                    && in_array('company_id', $fk['foreign_columns'], true);
+
+                if ($pointsToCompanyTable && ! $includesCompany) {
+                    $bad[] = $table.'('.implode(',', $fk['columns']).') → '.$fk['foreign_table'];
+                }
+            }
+        }
+
+        $this->assertSame([], $bad, 'Тези връзки не включват company_id.');
+    }
+
     public function test_every_model_with_company_id_uses_the_company_filter(): void
     {
         foreach (File::files(app_path('Models')) as $file) {

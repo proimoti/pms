@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Tenancy;
 
+use App\Models\Broker;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,6 +111,27 @@ class CompanyIsolationTest extends TestCase
             [$this->alpha->id, $this->beta->id],
             Company::query()->pluck('id')->all(),
         );
+    }
+
+    public function test_company_a_user_sees_only_company_a_brokers(): void
+    {
+        $this->actingAs($this->betaUser);
+        $betaBroker = Broker::factory()->create();
+
+        $this->actingAs($this->alphaUser);
+        $alphaBroker = Broker::factory()->create();
+
+        $this->assertSame([$alphaBroker->id], Broker::query()->pluck('id')->all());
+        $this->assertNull(Broker::find($betaBroker->id));
+    }
+
+    public function test_broker_created_by_company_a_user_belongs_to_company_a_even_if_b_is_given(): void
+    {
+        $this->actingAs($this->alphaUser);
+
+        $broker = Broker::factory()->create(['company_id' => $this->beta->id]);
+
+        $this->assertDatabaseHas('brokers', ['id' => $broker->id, 'company_id' => $this->alpha->id]);
     }
 
     public function test_app_admin_sees_users_of_all_companies(): void

@@ -43,6 +43,12 @@ class User extends Authenticatable
         ];
     }
 
+    /** Администраторът на приложението вижда потребителите на всички фирми. */
+    protected static function appAdminSeesAll(): bool
+    {
+        return true;
+    }
+
     public function isAppAdmin(): bool
     {
         return $this->role === Role::AppAdmin;
