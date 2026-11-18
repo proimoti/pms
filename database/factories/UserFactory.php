@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\AccessLevel;
+use App\Enums\PropertyScope;
 use App\Enums\Role;
 use App\Models\Company;
 use App\Models\User;
@@ -30,6 +32,10 @@ class UserFactory extends Factory
         return [
             'company_id' => Company::factory(),
             'role' => Role::Staff,
+            // Удобно за тестовете: служител, който работи с регистъра.
+            // В базата по подразбиране е най-безопасното (само четене, само прикачените).
+            'access_level' => AccessLevel::Write,
+            'property_scope' => PropertyScope::All,
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
@@ -45,6 +51,21 @@ class UserFactory extends Factory
             'company_id' => null,
             'role' => Role::AppAdmin,
         ]);
+    }
+
+    public function readOnly(): static
+    {
+        return $this->state(fn (array $attributes) => ['access_level' => AccessLevel::Read]);
+    }
+
+    public function assignedPropertiesOnly(): static
+    {
+        return $this->state(fn (array $attributes) => ['property_scope' => PropertyScope::Assigned]);
+    }
+
+    public function canViewSensitive(): static
+    {
+        return $this->state(fn (array $attributes) => ['can_view_sensitive' => true]);
     }
 
     public function owner(): static

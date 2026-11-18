@@ -2,9 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\Archivable;
-use App\Models\Concerns\Audited;
-use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\RegistryRecord;
 use Database\Factories\BrokerFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 class Broker extends Model
 {
     /** @use HasFactory<BrokerFactory> */
-    use Archivable, Audited, BelongsToCompany, HasFactory;
+    use HasFactory, RegistryRecord;
 
     protected $table = 'brokers';
 

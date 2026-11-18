@@ -42,6 +42,17 @@ trait Audited
 
             $model->writeAudit($event, $changes);
         });
+
+        // Само за записи, които могат да се махат (например прикачен имот).
+        // Записите на регистъра не се трият изобщо.
+        static::deleted(function (Model $model) {
+            $changes = [];
+            foreach ($model->getRawOriginal() as $field => $value) {
+                $changes[$field] = ['old' => $value, 'new' => null];
+            }
+
+            $model->writeAudit('deleted', $changes);
+        });
     }
 
     protected function writeAudit(string $event, array $changes): void
