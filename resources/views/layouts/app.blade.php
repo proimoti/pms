@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title') – PMS</title>
+    <title>@yield('title') – {{ config('app.name') }}</title>
     <style>
         :root { --bg: #f5f5f4; --card: #fff; --text: #1c1917; --muted: #57534e; --line: #d6d3d1; --accent: #1d4ed8; --error: #b91c1c; --ok: #15803d; --warn: #92400e; }
         * { box-sizing: border-box; }

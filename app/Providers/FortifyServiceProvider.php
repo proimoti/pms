@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\PasswordResetLinkResponse;
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -29,6 +31,20 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+
+        // Писмо за забравена парола: на български, с името PMS като подател.
+        ResetPassword::toMailUsing(fn (object $notifiable, string $token) => (new MailMessage)
+            ->from(config('mail.from.address'), config('app.name'))
+            ->subject(__('mail.reset.subject', ['app' => config('app.name')]))
+            ->greeting(__('mail.reset.greeting'))
+            ->line(__('mail.reset.intro', ['app' => config('app.name')]))
+            ->action(__('mail.reset.action'), url(route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ], false)))
+            ->line(__('mail.reset.expires', ['count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire')]))
+            ->line(__('mail.reset.not_you'))
+            ->salutation(__('mail.reset.salutation', ['app' => config('app.name')])));
 
         Fortify::authenticateUsing(function (Request $request) {
             // Никой не е влязъл, затова филтърът по фирма не пречи. Имейлът е уникален.
