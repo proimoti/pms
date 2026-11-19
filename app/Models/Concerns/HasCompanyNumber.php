@@ -9,7 +9,8 @@ use Illuminate\Validation\ValidationException;
  * Номер, уникален във фирмата (PROJECT.md, т. 2 „Регистър“ и „уточнения“):
  * цяло число; ако не е зададено, следващото = най-голямото във фирмата + 1
  * (включително архивираните, за да не се ползва повторно); може да се смени
- * на ръка, с проверка за дубликат. Заключването идва с договорите и книгата.
+ * на ръка, с проверка за дубликат. Имотът променя правилото (най-малкият
+ * свободен и резервирани номера). Заключването идва с първото начисление.
  */
 trait HasCompanyNumber
 {
@@ -34,6 +35,12 @@ trait HasCompanyNumber
 
             $model->ensureNumberIsFree();
         });
+
+        static::updated(function (Model $model) {
+            if ($model->wasChanged('number')) {
+                $model->numberWasChanged((int) $model->getRawOriginal('number'));
+            }
+        });
     }
 
     public function initializeHasCompanyNumber(): void
@@ -42,8 +49,8 @@ trait HasCompanyNumber
     }
 
     /**
-     * Заключен ли е номерът. Ще стане „да“, щом имотът/лицето има договор
-     * или записи в книгата. Тези таблици още ги няма.
+     * Заключен ли е номерът. Ще стане „да“ при първото начисление
+     * (записи в книгата). Тези таблици още ги няма.
      */
     public function isNumberLocked(): bool
     {
@@ -55,8 +62,23 @@ trait HasCompanyNumber
         return (int) $this->sameCompanyQuery()->max('number') + 1;
     }
 
+    /** Резервиран ли е номерът (зает, без да е на запис). Само при имотите. */
+    protected function isNumberReserved(): bool
+    {
+        return false;
+    }
+
+    /** След ръчна смяна на номера. Имотът резервира стария номер. */
+    protected function numberWasChanged(int $oldNumber): void {}
+
     protected function ensureNumberIsFree(): void
     {
+        if ($this->isNumberReserved()) {
+            throw ValidationException::withMessages([
+                'number' => __('registry.number_reserved', ['number' => $this->number]),
+            ]);
+        }
+
         $taken = $this->sameCompanyQuery()
             ->where('number', $this->number)
             ->when($this->exists, fn ($query) => $query->whereKeyNot($this->getKey()))
@@ -70,7 +92,7 @@ trait HasCompanyNumber
     }
 
     /** Всички записи на фирмата, независимо какво вижда текущият потребител. */
-    private function sameCompanyQuery()
+    protected function sameCompanyQuery()
     {
         return static::query()->withoutGlobalScopes()->where('company_id', $this->company_id);
     }

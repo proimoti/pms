@@ -35,6 +35,50 @@ class Property extends Model
         return ['area' => 'decimal:2'];
     }
 
+    /**
+     * Следващият номер на имот = най-малкият свободен (PROJECT.md, т. 2
+     * „Регистър, уточнения“, 19.11.2026). Заети са номерата на всички имоти,
+     * и архивираните, и резервираните: номер никога не се освобождава.
+     */
+    protected function nextNumber(): int
+    {
+        $taken = $this->sameCompanyQuery()->pluck('number')
+            ->merge($this->reservedNumbersQuery()->pluck('number'))
+            ->map(fn ($number) => (int) $number)
+            ->unique()
+            ->sort();
+
+        $next = 1;
+        foreach ($taken as $number) {
+            if ($number > $next) {
+                break;
+            }
+            $next = $number + 1;
+        }
+
+        return $next;
+    }
+
+    protected function isNumberReserved(): bool
+    {
+        return $this->reservedNumbersQuery()->where('number', $this->number)->exists();
+    }
+
+    /** Ръчно сменен номер остава резервиран (не се освобождава). */
+    protected function numberWasChanged(int $oldNumber): void
+    {
+        (new ReservedPropertyNumber)->forceFill([
+            'company_id' => $this->company_id,
+            'number' => $oldNumber,
+            'reason' => ReservedPropertyNumber::REASON_CHANGED,
+        ])->save();
+    }
+
+    private function reservedNumbersQuery()
+    {
+        return ReservedPropertyNumber::query()->withoutGlobalScopes()->where('company_id', $this->company_id);
+    }
+
     protected static function assignedScopeRule(): string
     {
         return RegistryVisibilityScope::ASSIGNED_PROPERTIES;
