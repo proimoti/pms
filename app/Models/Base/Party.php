@@ -6,6 +6,7 @@ use App\Enums\PartyKind;
 use App\Models\Concerns\HasCompanyNumber;
 use App\Models\Concerns\RegistryRecord;
 use App\Models\Scopes\RegistryVisibilityScope;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -33,6 +34,17 @@ abstract class Party extends Model
     protected static function assignedScopeRule(): string
     {
         return RegistryVisibilityScope::NONE;
+    }
+
+    /** Без интервали в началото и края и без двойни интервали вътре. */
+    public static function normalizeName(string $name): string
+    {
+        return trim(preg_replace('/\s+/u', ' ', $name));
+    }
+
+    protected function name(): Attribute
+    {
+        return Attribute::make(set: fn (?string $value) => $value === null ? null : self::normalizeName($value));
     }
 
     public function isLegalEntity(): bool

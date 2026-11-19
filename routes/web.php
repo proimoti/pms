@@ -1,6 +1,12 @@
 <?php
 
+use App\Http\Controllers\Registry\BrokerController;
+use App\Http\Controllers\Registry\OwnerController;
+use App\Http\Controllers\Registry\PropertyController;
+use App\Http\Controllers\Registry\TenantController;
+use App\Http\Middleware\EnsureRegistryAccess;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 Route::get('/', function () {
     return view('welcome');
@@ -13,4 +19,29 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', fn () => view('dashboard'))->name('dashboard');
 
     Route::get('/two-factor/setup', fn () => view('auth.two-factor-setup'))->name('two-factor.setup');
+
+    // Регистър (PROJECT.md, т. 2): само за служители; промени само с „четене и запис“.
+    // Изтриване няма, само архивиране.
+    Route::middleware(EnsureRegistryAccess::class)->group(function () {
+        $sections = [
+            'properties' => PropertyController::class,
+            'owners' => OwnerController::class,
+            'tenants' => TenantController::class,
+            'brokers' => BrokerController::class,
+        ];
+
+        foreach ($sections as $section => $controller) {
+            $parameter = Str::singular($section);
+            $write = EnsureRegistryAccess::class.':write';
+
+            Route::get($section, [$controller, 'index'])->name("{$section}.index");
+            Route::get("{$section}/create", [$controller, 'create'])->middleware($write)->name("{$section}.create");
+            Route::post($section, [$controller, 'store'])->middleware($write)->name("{$section}.store");
+            Route::get("{$section}/{{$parameter}}", [$controller, 'show'])->name("{$section}.show");
+            Route::get("{$section}/{{$parameter}}/edit", [$controller, 'edit'])->middleware($write)->name("{$section}.edit");
+            Route::put("{$section}/{{$parameter}}", [$controller, 'update'])->middleware($write)->name("{$section}.update");
+            Route::post("{$section}/{{$parameter}}/archive", [$controller, 'archive'])->middleware($write)->name("{$section}.archive");
+            Route::post("{$section}/{{$parameter}}/restore", [$controller, 'restore'])->middleware($write)->name("{$section}.restore");
+        }
+    });
 });

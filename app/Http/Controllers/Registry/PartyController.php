@@ -1,0 +1,81 @@
+<?php
+
+namespace App\Http\Controllers\Registry;
+
+use App\Http\Requests\Registry\PartyRequest;
+use App\Models\Base\Party;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+/**
+ * Общо за екраните „Собственици“ и „Наематели“.
+ * Имената не са уникални: при подобно име първо се показва предупреждение.
+ */
+abstract class PartyController extends RegistryController
+{
+    /** @return class-string<Party> */
+    abstract protected function modelClass(): string;
+
+    protected function applySearch(Builder $query, string $term, string $likeTerm): void
+    {
+        if (ctype_digit($term)) {
+            $query->orWhere('number', (int) $term)->orWhere('eik', $term);
+        }
+
+        foreach (['name', 'phone', 'email', 'city'] as $column) {
+            $query->orWhere($column, 'like', $likeTerm);
+        }
+    }
+
+    public function index(Request $request): View
+    {
+        $query = $this->listQuery($request, $this->modelClass()::query()->orderBy('number'));
+
+        return view('registry.parties.index', ['parties' => $this->paginate($query), 'section' => $this->section()]);
+    }
+
+    public function create(): View
+    {
+        $class = $this->modelClass();
+
+        return view('registry.parties.form', ['party' => new $class, 'section' => $this->section()]);
+    }
+
+    public function store(PartyRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+        $class = $this->modelClass();
+
+        if (! $request->boolean('confirm_similar_name')) {
+            $similar = $class::query()->where('name', Party::normalizeName($data['name']))
+                ->get(['id', 'number', 'name'])->toArray();
+
+            if ($similar !== []) {
+                return back()->withInput()->with('similar_names', $similar);
+            }
+        }
+
+        $party = $class::query()->create($data);
+
+        return redirect("/{$this->section()}/{$party->id}")->with('status', __('registry.saved'));
+    }
+
+    protected function showRecord(Party $party): View
+    {
+        return view('registry.parties.show', ['party' => $party, 'section' => $this->section()]);
+    }
+
+    protected function editRecord(Party $party): View
+    {
+        return view('registry.parties.form', ['party' => $party, 'section' => $this->section()]);
+    }
+
+    protected function updateRecord(PartyRequest $request, Party $party): RedirectResponse
+    {
+        $party->update($request->validated());
+
+        return redirect("/{$this->section()}/{$party->id}")->with('status', __('registry.saved'));
+    }
+}
