@@ -21,7 +21,7 @@ class LeaseContractLine extends Model
 
     protected function casts(): array
     {
-        return ['rent' => 'decimal:2', 'deposit' => 'decimal:2'];
+        return ['rent' => 'decimal:2', 'deposit' => 'decimal:2', 'first_period_rent' => 'decimal:2'];
     }
 
     public function contract(): BelongsTo

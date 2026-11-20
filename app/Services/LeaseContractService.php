@@ -41,7 +41,7 @@ class LeaseContractService extends ContractService
 
     /**
      * @param  array{tenant_id: ?int, signed_on: mixed, end_on?: mixed, number?: ?int, note?: ?string,
-     *     company_id?: int, lines: list<array{property_id: int, start_on?: mixed, rent: string, deposit?: ?string}>}  $data
+     *     company_id?: int, lines: list<array{property_id: int, start_on?: mixed, rent: string, deposit?: ?string, first_period_rent?: ?string}>}  $data
      */
     public function create(array $data): LeaseContract
     {
@@ -69,7 +69,7 @@ class LeaseContractService extends ContractService
             $contract->save();
 
             foreach ($lines as $line) {
-                $this->newLine($contract, $line['property_id'], $line['start_on'], $line['rent'], $line['deposit']);
+                $this->newLine($contract, $line['property_id'], $line['start_on'], $line['rent'], $line['deposit'], firstPeriodRent: $line['first_period_rent']);
             }
 
             $this->ensurePropertiesAreFree($contract);
@@ -367,6 +367,7 @@ class LeaseContractService extends ContractService
             $start = $this->attempt(fn () => $this->lineStart($line, $signedOn));
             $rent = $this->attempt(fn () => $this->rent($line['rent'] ?? null));
             $deposit = $this->attempt(fn () => $this->deposit($line['deposit'] ?? null));
+            $firstPeriodRent = $this->attempt(fn () => $this->firstPeriodRent($line['first_period_rent'] ?? null));
 
             if ($propertyId !== null && $start !== null) {
                 $this->attempt(fn () => $this->ensureFreeFrom($this->blank($companyId), $companyId, $propertyId, $start, $earlier));
@@ -374,7 +375,8 @@ class LeaseContractService extends ContractService
             }
 
             if ($this->failures() === $before) {
-                $result[] = ['property_id' => $propertyId, 'start_on' => $start, 'rent' => $rent, 'deposit' => $deposit];
+                $result[] = ['property_id' => $propertyId, 'start_on' => $start, 'rent' => $rent, 'deposit' => $deposit,
+                    'first_period_rent' => $firstPeriodRent];
             }
         }
 
@@ -390,12 +392,25 @@ class LeaseContractService extends ContractService
         return $contract;
     }
 
-    private function newLine(LeaseContract $contract, int $propertyId, CarbonImmutable $from, string $rent, string $deposit, ?LeaseContractAnnex $annex = null): LeaseContractLine
+    /**
+     * Договорен наем за първия период (PROJECT.md, „Начисления, уточнения“):
+     * незадължителен, 0 или повече. Празен = наемът се пресмята по дни.
+     */
+    private function firstPeriodRent($amount): ?string
+    {
+        return $amount === null || $amount === ''
+            ? null
+            : $this->money($amount, 'lines', 'first_period_rent_invalid', allowZero: true);
+    }
+
+    private function newLine(LeaseContract $contract, int $propertyId, CarbonImmutable $from, string $rent, string $deposit,
+        ?LeaseContractAnnex $annex = null, ?string $firstPeriodRent = null): LeaseContractLine
     {
         return $this->newVersion(new LeaseContractLine, $contract, $from, $annex, [
             'property_id' => $propertyId,
             'rent' => $rent,
             'deposit' => $deposit,
+            'first_period_rent' => $firstPeriodRent,
         ]);
     }
 }
