@@ -17,6 +17,10 @@ return [
     // излезе „Laravel“ в писмата и в приложението за втория фактор (PROJECT.md, т. 2).
     'name' => 'PMS',
 
+    // Командата pms:demo-data работи само ако е разрешено (ALLOW_DEMO_DATA=true):
+    // само на тестов сървър, никога в акаунта с реални данни.
+    'allow_demo_data' => (bool) env('ALLOW_DEMO_DATA', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
