@@ -5,6 +5,11 @@ namespace Tests\Feature\Tenancy;
 use App\Enums\OwnerContractType;
 use App\Enums\PaymentMethod;
 use App\Models\Broker;
+use App\Models\LedgerEntry;
+use App\Models\PeriodLock;
+use App\Models\Statement;
+use App\Models\StatementLine;
+use App\Services\Charges\Issuer;
 use App\Models\ChargeDraft;
 use App\Models\ChargeMonth;
 use App\Models\Owner;
@@ -176,11 +181,17 @@ class CompanyIsolationTest extends TestCase
             "type" => "penalty", "month" => "2026-12", "amount" => "50"]);
         app(MonthWorksheet::class)->generate("2026-12");
         $this->assertSame(3, ChargeDraft::query()->count());
+        app(Issuer::class)->issueMonth("2026-12");
+        $this->assertSame(1, Statement::query()->count());
 
         $this->actingAs($this->alphaUser);
         $this->assertSame(0, ChargeDraft::query()->count());
         $this->assertSame(0, ChargeMonth::query()->count());
         $this->assertSame(0, UpcomingCharge::query()->count());
+        $this->assertSame(0, Statement::query()->count());
+        $this->assertSame(0, StatementLine::query()->count());
+        $this->assertSame(0, LedgerEntry::query()->count());
+        $this->assertSame(0, PeriodLock::query()->count());
         $this->assertSame([], app(MonthWorksheet::class)->warnings("2026-12"));
         $this->assertSame(0, app(MonthWorksheet::class)->generate("2026-12")->company_id === $this->alpha->id ? ChargeDraft::query()->count() : -1);
     }

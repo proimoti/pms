@@ -68,6 +68,11 @@ class ChargeDraft extends Model
         return $this->belongsTo(Owner::class);
     }
 
+    public function statement(): BelongsTo
+    {
+        return $this->belongsTo(Statement::class);
+    }
+
     public function editedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'edited_by');

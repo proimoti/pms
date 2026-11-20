@@ -6,6 +6,7 @@ use App\Enums\ChargeSource;
 use App\Enums\ChargeType;
 use App\Models\ChargeDraft;
 use App\Models\LeaseContract;
+use App\Models\PeriodLock;
 use App\Models\Property;
 use App\Models\UpcomingCharge;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,7 @@ class UpcomingChargeService
     public function update(UpcomingCharge $upcoming, array $data): UpcomingCharge
     {
         $input = new ChargeInput;
+        MonthWorksheet::ensureOpen($upcoming->month);
         if ($upcoming->cancelled_at !== null) {
             $input->fail('changes', 'upcoming_cancelled');
             $input->check();
@@ -67,6 +69,7 @@ class UpcomingChargeService
     /** Отказ (вместо изтриване), с причина. Неизпълненият ред в работната таблица отпада при „Генерирай отново“. */
     public function cancel(UpcomingCharge $upcoming, ?string $reason): UpcomingCharge
     {
+        MonthWorksheet::ensureOpen($upcoming->month);
         $input = new ChargeInput;
         $reason = $input->reason($reason);
         $input->check();
@@ -112,6 +115,8 @@ class UpcomingChargeService
         $month = Month::tryParse($data['month'] ?? null);
         if ($month === null) {
             $input->fail('month', 'month_invalid');
+        } elseif (PeriodLock::isLocked($month)) {
+            $input->fail('month', 'month_locked');
         }
 
         return [

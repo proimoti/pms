@@ -44,7 +44,7 @@
                     {{ __('charges.sources.'.$row->source->value) }}@if ($row->edited_at && $row->source->value !== 'manual'), {{ __('charges.screens.manual_mark') }}@endif
                 </td>
                 <td>
-                    @if ($canManage)
+                    @if ($editable && $row->statement_id === null)
                         <a href="/charges/{{ $row->id }}/edit">{{ $row->removed_at ? __('charges.screens.restore') : __('charges.screens.change') }}</a>
                     @endif
                 </td>

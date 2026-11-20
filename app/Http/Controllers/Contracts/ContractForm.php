@@ -5,7 +5,12 @@ namespace App\Http\Controllers\Contracts;
 use App\Services\InvalidInput;
 use App\Services\SkippedCheck;
 use App\Support\BgDate;
+use App\Models\LeaseContract;
+use App\Models\OwnerContract;
+use App\Services\Charges\Month;
+use App\Services\Charges\Reconciliation;
 use Closure;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -115,6 +120,28 @@ trait ContractForm
         }
 
         return $values;
+    }
+
+    /**
+     * След запис на договор: ако издаден месец вече се разминава с договорите,
+     * предупреждение с месеците (PROJECT.md, „Промяна в издаден месец“).
+     */
+    protected function withIssuedDifferences(RedirectResponse $redirect, LeaseContract|OwnerContract $contract): RedirectResponse
+    {
+        $months = array_keys(app(Reconciliation::class)->differencesFor($contract->fresh()));
+        if ($months === []) {
+            return $redirect;
+        }
+
+        $labels = implode(', ', array_map(fn ($key) => Month::label(Month::parse($key)), $months));
+        $text = __('charges.issue.contract_differences', ['months' => $labels]);
+
+        // Ако вече има предупреждение от този запис (например за IBAN), се добавя към него.
+        $session = $redirect->getSession();
+        $current = $session !== null && in_array('warning', (array) $session->get('_flash.new', []), true)
+            ? (string) $session->get('warning') : '';
+
+        return $redirect->with('warning', trim($current.' '.$text));
     }
 
     private function merged(MessageBag $errors, array $more): array

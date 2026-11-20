@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use App\Models\LedgerEntry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
@@ -49,12 +50,23 @@ trait HasCompanyNumber
     }
 
     /**
-     * Заключен ли е номерът. Ще стане „да“ при първото начисление
-     * (записи в книгата). Тези таблици още ги няма.
+     * Заключен ли е номерът: „да“ след първото начисление (запис в книгата
+     * за този имот, собственик, наемател или договор), защото номерът е част
+     * от аналитиката в счетоводството (PROJECT.md, т. 2 „Регистър“).
      */
     public function isNumberLocked(): bool
     {
-        return false;
+        $column = match ($this->getTable()) {
+            'properties' => 'property_id',
+            'owners' => 'owner_id',
+            'tenants' => 'tenant_id',
+            'lease_contracts' => 'lease_contract_id',
+            'owner_contracts' => 'owner_contract_id',
+            default => null,
+        };
+
+        return $column !== null && $this->exists && LedgerEntry::query()->withoutGlobalScopes()
+            ->where('company_id', $this->company_id)->where($column, $this->getKey())->exists();
     }
 
     protected function nextNumber(): int

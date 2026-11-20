@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\ChargeDraft;
 use App\Models\ChargeMonth;
 use App\Models\LeaseContract;
+use App\Models\PeriodLock;
 use App\Models\Property;
 use App\Models\Scopes\CompanyScope;
 use App\Models\UpcomingCharge;
@@ -16,6 +17,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use LogicException;
 
 /**
@@ -47,7 +49,17 @@ class MonthWorksheet
     public function __construct(
         private readonly ChargeCalculator $calculator,
         private readonly UpcomingChargeService $upcoming,
+        private readonly Issuer $issuer,
+        private readonly Reconciliation $reconciliation,
     ) {}
+
+    /** Издаден месец не се променя (PROJECT.md, „Издаване и заключване“): само корекции. */
+    public static function ensureOpen(CarbonImmutable $month): void
+    {
+        if (PeriodLock::isLocked($month)) {
+            throw ValidationException::withMessages(['month' => __('charges.messages.month_locked')]);
+        }
+    }
 
     public function generate(string $month): ChargeMonth
     {
@@ -55,14 +67,21 @@ class MonthWorksheet
         $companyId = $this->companyId();
 
         return DB::transaction(function () use ($start, $companyId) {
+            Ledger::lockCompany($companyId);
+            self::ensureOpen($start);
+
             $stamp = ChargeMonth::query()->whereDate('month', $start)->lockForUpdate()->first() ?? new ChargeMonth;
-            $rows = $this->rowsQuery($start)->lockForUpdate()->get();
-            $before = $rows->whereNull('removed_at')->count();
+            $all = $this->rowsQuery($start)->lockForUpdate()->get();
+            $before = $all->whereNull('removed_at')->count();
+
+            // Договорите, издадени вече с „Издай сега“, не се пипат.
+            $issued = $this->reconciliation->issuedLeases($start);
+            $rows = $all->whereNull('statement_id')->filter(fn (ChargeDraft $row) => ! in_array($row->lease_contract_id, $issued, true));
 
             $rents = array_filter($this->calculator->forMonth($companyId, Month::key($start))->charges(),
-                fn (ProposedCharge $charge) => $charge->type === ProposedCharge::RENT);
+                fn (ProposedCharge $charge) => $charge->type === ProposedCharge::RENT && ! in_array($charge->leaseContractId, $issued, true));
             $this->applyComputed($start, $rows->where('source', ChargeSource::Computed)->where('type', ChargeType::Rent), $rents);
-            $this->applyUpcoming($start, $rows->where('source', ChargeSource::Upcoming));
+            $this->applyUpcoming($start, $rows->where('source', ChargeSource::Upcoming), $issued);
             $this->refreshOwners($start);
 
             $stamp->forceFill(['month' => $start, 'generated_at' => now(), 'generated_by' => Auth::id()])->save();
@@ -124,6 +143,8 @@ class MonthWorksheet
         $start = Month::tryParse($month);
         if ($start === null) {
             $input->fail('month', 'month_invalid');
+        } elseif (PeriodLock::isLocked($start)) {
+            $input->fail('month', 'month_locked');
         }
 
         $type = ChargeType::tryFrom((string) ($data['type'] ?? ''));
@@ -168,6 +189,7 @@ class MonthWorksheet
     /** Ръчна промяна на сумата (и бележката), с причина. */
     public function change(ChargeDraft $row, array $data): ChargeDraft
     {
+        $this->ensureEditable($row);
         $input = new ChargeInput;
         $amount = $input->amount($data['amount'] ?? null);
         $note = array_key_exists('note', $data) ? $input->note($data['note'], required: $row->type->needsNote()) : $row->note;
@@ -190,6 +212,7 @@ class MonthWorksheet
     /** Махане с причина: редът остава махнат и „Генерирай отново“ не го връща. */
     public function remove(ChargeDraft $row, ?string $reason): ChargeDraft
     {
+        $this->ensureEditable($row);
         $input = new ChargeInput;
         $reason = $input->reason($reason);
         $input->check();
@@ -203,6 +226,7 @@ class MonthWorksheet
     /** Връщане на махнат ред, с причина (остава отбелязан като ръчно пипан). */
     public function restore(ChargeDraft $row, ?string $reason): ChargeDraft
     {
+        $this->ensureEditable($row);
         $input = new ChargeInput;
         $reason = $input->reason($reason);
         $input->check();
@@ -215,6 +239,15 @@ class MonthWorksheet
         $this->afterRentChange($row);
 
         return $row;
+    }
+
+    /** Ред от издаден месец или от вече издадено известие не се променя. */
+    private function ensureEditable(ChargeDraft $row): void
+    {
+        self::ensureOpen($row->month);
+        if ($row->statement_id !== null) {
+            throw ValidationException::withMessages(['month' => __('charges.messages.row_issued')]);
+        }
     }
 
     /** При промяна на ред за наем дялът на собственика при процент се обновява веднага. */
@@ -274,7 +307,8 @@ class MonthWorksheet
             ]), null, $item->leaseContractId, $item->propertyId);
         }
 
-        return array_merge($warnings, $this->depositWarnings($start), $this->upcomingWarnings($start));
+        return array_merge($warnings, $this->depositWarnings($start), $this->upcomingWarnings($start),
+            $this->issuer->warnings(Month::key($start)), $this->reconciliation->warnings(Month::key($start)));
     }
 
     /** Вноските надхвърлят договорения депозит; нов договор с договорен депозит без въведен депозит. */
@@ -391,10 +425,11 @@ class MonthWorksheet
     }
 
     /** Предстоящите начисления на месеца (без отказаните). */
-    private function applyUpcoming(CarbonImmutable $start, Collection $existing): void
+    private function applyUpcoming(CarbonImmutable $start, Collection $existing, array $issued = []): void
     {
         $byUpcoming = $existing->keyBy('upcoming_charge_id');
         $upcoming = UpcomingCharge::query()->whereDate('month', $start)->whereNull('cancelled_at')
+            ->whereNotIn('lease_contract_id', $issued === [] ? [0] : $issued)
             ->with('leaseContract')->get()->keyBy('id');
 
         foreach ($upcoming as $id => $charge) {

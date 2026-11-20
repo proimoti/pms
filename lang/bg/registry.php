@@ -30,6 +30,7 @@ return [
         'owner-contracts' => 'Договори за управление',
         'lease-contracts' => 'Договори за наем',
         'charges' => 'Начисления',
+        'statements' => 'Известия',
     ],
     'new' => [
         'properties' => 'Нов имот',

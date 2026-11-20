@@ -123,5 +123,46 @@
     @endif
     <p class="muted">{{ __('contracts.screens.hints.lease_amount_fields') }}</p>
 
+    @if ($canIssue)
+        <form method="GET" action="/lease-contracts/{{ $contract->id }}/issue" class="row" style="justify-content: flex-start; margin-top: 8px;">
+            <input type="text" inputmode="numeric" maxlength="7" name="month" placeholder="мм.гггг" aria-label="{{ __('charges.issue.now_month') }}" style="max-width: 140px;">
+            <button type="submit" class="secondary" style="margin-top: 0;">{{ __('charges.issue.now') }}</button>
+        </form>
+    @endif
+
+    <h2>{{ __('charges.issue.ledger') }}</h2>
+    @if ($entries->isEmpty())
+        <p class="muted">{{ __('charges.issue.no_entries') }}</p>
+    @else
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>{{ __('charges.fields.month') }}</th>
+                    <th>{{ __('charges.issue.entry_date') }}</th>
+                    <th>{{ __('charges.issue.account') }}</th>
+                    <th>{{ __('charges.fields.type') }}</th>
+                    <th class="num">{{ __('charges.fields.amount') }}</th>
+                    <th>{{ __('charges.fields.source') }}</th>
+                    <th>{{ __('charges.fields.reason') }}</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach ($entries as $entry)
+                    <tr>
+                        <td>{{ \App\Services\Charges\Month::label($entry->month) }}</td>
+                        <td>{{ Format::date($entry->entry_date) }}</td>
+                        <td>{{ __('charges.issue.accounts.'.$entry->account->value) }}</td>
+                        <td>{{ __('charges.types.'.$entry->type->value) }}</td>
+                        <td class="num">{{ Format::money($entry->amount) }}</td>
+                        <td>{{ __('charges.issue.kinds.'.$entry->kind->value) }}</td>
+                        <td>{{ $entry->reason }}</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
     @include('registry.partials.record-actions', ['section' => 'lease-contracts', 'record' => $contract])
 @endsection

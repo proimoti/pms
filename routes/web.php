@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Charges\ChargeWorksheetController;
+use App\Http\Controllers\Charges\CorrectionController;
+use App\Http\Controllers\Charges\IssueController;
+use App\Http\Controllers\Charges\StatementController;
 use App\Http\Controllers\Charges\UpcomingChargeController;
 use App\Http\Controllers\Contracts\LeaseContractController;
 use App\Http\Controllers\Contracts\OwnerContractController;
@@ -84,6 +87,17 @@ Route::middleware('auth')->group(function () {
         $manage = EnsureRegistryAccess::class.':manage';
         Route::get('charges', [ChargeWorksheetController::class, 'index'])->name('charges.index');
         Route::post('charges/generate', [ChargeWorksheetController::class, 'generate'])->middleware($manage)->name('charges.generate');
+        // Издаване и корекции (PROJECT.md, „Издаване и заключване“).
+        Route::get('charges/issue', [IssueController::class, 'preview'])->middleware($manage)->name('charges.issue.preview');
+        Route::post('charges/issue', [IssueController::class, 'issue'])->middleware($manage)->name('charges.issue');
+        Route::get('lease-contracts/{contract}/issue', [IssueController::class, 'previewNow'])->middleware($manage)->name('lease-contracts.issue.preview');
+        Route::post('lease-contracts/{contract}/issue', [IssueController::class, 'issueNow'])->middleware($manage)->name('lease-contracts.issue');
+        Route::post('charges/corrections', [CorrectionController::class, 'correct'])->middleware($manage)->name('charges.corrections.correct');
+        Route::get('charges/corrections/create', [CorrectionController::class, 'create'])->middleware($manage)->name('charges.corrections.create');
+        Route::post('charges/corrections/manual', [CorrectionController::class, 'store'])->middleware($manage)->name('charges.corrections.store');
+        Route::get('statements', [StatementController::class, 'index'])->name('statements.index');
+        Route::get('statements/{statement}', [StatementController::class, 'show'])->name('statements.show');
+
         Route::get('charges/create', [ChargeWorksheetController::class, 'create'])->middleware($manage)->name('charges.create');
         Route::post('charges', [ChargeWorksheetController::class, 'store'])->middleware($manage)->name('charges.store');
         Route::get('charges/{charge}/edit', [ChargeWorksheetController::class, 'edit'])->middleware($manage)->name('charges.edit');

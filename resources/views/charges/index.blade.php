@@ -16,17 +16,23 @@
         </div>
     </div>
 
+    @php($editable = $canManage && $lock === null)
     <p class="muted">
-        {{ __('charges.screens.status_working') }}
-        @if ($stamp?->generated_at)
-            {{ __('charges.screens.generated', ['date' => $stamp->generated_at->format('d.m.Y H:i'), 'user' => $stamp->generatedBy?->name]) }}
+        @if ($lock)
+            <strong>{{ __('charges.issue.issued_status', ['date' => $lock->locked_at->format('d.m.Y')]) }}</strong>
+            {{ __('charges.issue.issued_by', ['user' => $lock->lockedBy?->name]) }}
         @else
-            {{ __('charges.screens.not_generated') }}
+            {{ __('charges.screens.status_working') }}
+            @if ($stamp?->generated_at)
+                {{ __('charges.screens.generated', ['date' => $stamp->generated_at->format('d.m.Y H:i'), 'user' => $stamp->generatedBy?->name]) }}
+            @else
+                {{ __('charges.screens.not_generated') }}
+            @endif
         @endif
     </p>
 
     <div class="actions">
-        @if ($canManage)
+        @if ($editable)
             <form method="POST" action="/charges/generate">
                 @csrf
                 <input type="hidden" name="month" value="{{ $key }}">
@@ -35,9 +41,67 @@
                 </button>
             </form>
             <a class="button secondary" href="/charges/create?month={{ $key }}">{{ __('charges.screens.manual_new') }}</a>
+            @if ($stamp?->generated_at)
+                <a class="button" href="/charges/issue?month={{ $key }}">{{ __('charges.issue.month') }}</a>
+            @endif
+        @endif
+        @if ($canManage && ($lock || $statementsCount > 0))
+            <a class="button secondary" href="/charges/corrections/create?month={{ $key }}">{{ __('charges.issue.manual_correction') }}</a>
+        @endif
+        @if ($statementsCount > 0)
+            <a class="button secondary" href="/statements?month={{ $key }}">{{ __('charges.issue.statements_link') }} ({{ $statementsCount }})</a>
         @endif
         <a class="button secondary" href="/upcoming-charges">{{ __('charges.screens.upcoming_link') }}</a>
     </div>
+
+    @if ($differences !== [])
+        <h2>{{ __('charges.issue.differences') }}</h2>
+        <p class="muted">{{ __('charges.issue.differences_intro') }}</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>{{ __('charges.issue.account') }}</th>
+                    <th>{{ __('charges.fields.contract') }}</th>
+                    <th>{{ __('charges.fields.property') }}</th>
+                    <th class="num">{{ __('charges.issue.booked') }}</th>
+                    <th class="num">{{ __('charges.issue.target') }}</th>
+                    <th class="num">{{ __('charges.issue.difference') }}</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach ($differences as $difference)
+                    <tr>
+                        <td>{{ __('charges.issue.accounts.'.$difference->account->value) }}</td>
+                        <td>
+                            @if ($difference->leaseContractId)
+                                {{ __('registry.one.lease-contracts') }} № {{ $names['leases'][$difference->leaseContractId]?->number }} — {{ $names['leases'][$difference->leaseContractId]?->tenant?->name }}
+                            @else
+                                {{ __('registry.one.owner-contracts') }} № {{ $names['managements'][$difference->ownerContractId]?->number }} — {{ $names['managements'][$difference->ownerContractId]?->owner?->name }}
+                            @endif
+                        </td>
+                        <td>№ {{ $names['properties'][$difference->propertyId] ?? '?' }}</td>
+                        <td class="num">{{ Format::money($difference->booked) }}</td>
+                        <td class="num">{{ Format::money($difference->target) }}</td>
+                        <td class="num">{{ Format::money($difference->difference) }}</td>
+                        <td>
+                            @if ($canManage)
+                                <form method="POST" action="/charges/corrections" class="row" style="justify-content: flex-start; gap: 6px;">
+                                    @csrf
+                                    <input type="hidden" name="month" value="{{ $key }}">
+                                    <input type="hidden" name="key" value="{{ $difference->key }}">
+                                    <input type="text" name="reason" placeholder="{{ __('charges.fields.reason') }}" aria-label="{{ __('charges.fields.reason') }}" maxlength="500" style="max-width: 220px;">
+                                    <button type="submit" class="secondary" style="margin-top: 0;">{{ __('charges.issue.record_correction') }}</button>
+                                </form>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 
     @if ($warnings !== [])
         <div class="warning" style="margin-top: 16px;">

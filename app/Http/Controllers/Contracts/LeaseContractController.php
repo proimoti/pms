@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Contracts;
 
 use App\Http\Controllers\Registry\RegistryController;
+use App\Models\Concerns\WorksheetRules;
 use App\Models\LeaseContract;
+use App\Models\LedgerEntry;
 use App\Models\Property;
 use App\Models\Scopes\RegistryVisibilityScope;
 use App\Models\Tenant;
@@ -99,6 +101,8 @@ class LeaseContractController extends RegistryController
             'contract' => $contract,
             'annexNumbers' => $contract->annexes->pluck('number', 'id'),
             'withoutManagement' => $this->leases->propertiesWithoutManagement($contract),
+            'entries' => LedgerEntry::query()->where('lease_contract_id', $contract->id)->orderBy('month')->orderBy('id')->get(),
+            'canIssue' => WorksheetRules::canManage(auth()->user()) && ! $contract->isArchived(),
         ]);
     }
 
@@ -123,7 +127,7 @@ class LeaseContractController extends RegistryController
 
         $this->submit($errors, fn () => $this->updateHeader($contract, $this->headerValues($request, $data)));
 
-        return redirect("/lease-contracts/{$contract->id}")->with('status', __('registry.saved'));
+        return $this->withIssuedDifferences(redirect("/lease-contracts/{$contract->id}")->with('status', __('registry.saved')), $contract);
     }
 
     public function archive(LeaseContract $contract): RedirectResponse
@@ -171,8 +175,8 @@ class LeaseContractController extends RegistryController
 
         $annex = $this->submit($errors, fn () => $this->leases->applyAnnex($contract, $data));
 
-        return $this->withManagementWarning(redirect("/lease-contracts/{$contract->id}")
-            ->with('status', __('contracts.screens.annex_saved', ['number' => $annex->number])), $contract);
+        return $this->withIssuedDifferences($this->withManagementWarning(redirect("/lease-contracts/{$contract->id}")
+            ->with('status', __('contracts.screens.annex_saved', ['number' => $annex->number])), $contract), $contract);
     }
 
     /** Поправка на полетата, от които зависят сумите, докато няма начисления. */

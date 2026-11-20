@@ -138,7 +138,7 @@ class OwnerContractController extends RegistryController
 
         $this->submit($errors, fn () => $this->updateHeader($contract, $this->headerValues($request, $data)));
 
-        return redirect("/owner-contracts/{$contract->id}")->with('status', __('registry.saved'));
+        return $this->withIssuedDifferences(redirect("/owner-contracts/{$contract->id}")->with('status', __('registry.saved')), $contract);
     }
 
     public function archive(OwnerContract $contract): RedirectResponse
@@ -195,7 +195,7 @@ class OwnerContractController extends RegistryController
         $redirect = redirect("/owner-contracts/{$contract->id}")
             ->with('status', __('contracts.screens.annex_saved', ['number' => $annex->number]));
 
-        return $data['payee'] !== null ? $this->withIbanWarning($redirect, $contract) : $redirect;
+        return $this->withIssuedDifferences($data['payee'] !== null ? $this->withIbanWarning($redirect, $contract) : $redirect, $contract);
     }
 
     /** Поправка на полетата, от които зависят сумите, докато няма начисления. */

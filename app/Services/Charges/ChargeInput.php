@@ -60,6 +60,20 @@ final class ChargeInput
         return number_format((float) $text, 2, '.', '');
     }
 
+    /** Сума със знак (корекция): различна от 0, до два знака. */
+    public function signedAmount($value): ?string
+    {
+        $text = str_replace([' ', ','], ['', '.'], trim((string) $value));
+
+        if (! preg_match('/^-?\d{1,10}(\.\d{1,2})?$/', $text) || (float) $text == 0) {
+            $this->fail('amount', 'amount_signed');
+
+            return null;
+        }
+
+        return number_format((float) $text, 2, '.', '');
+    }
+
     public function note($note, bool $required): ?string
     {
         $note = trim((string) $note);

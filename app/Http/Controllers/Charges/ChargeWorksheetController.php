@@ -9,10 +9,13 @@ use App\Models\ChargeMonth;
 use App\Models\Concerns\WorksheetRules;
 use App\Models\LeaseContract;
 use App\Models\OwnerContract;
+use App\Models\PeriodLock;
+use App\Models\Statement;
 use App\Models\Property;
 use App\Services\Charges\Cents;
 use App\Services\Charges\MonthWorksheet;
 use App\Services\Charges\Month;
+use App\Services\Charges\Reconciliation;
 use App\Services\Charges\WorksheetWarning;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +30,10 @@ use Illuminate\View\View;
  */
 class ChargeWorksheetController extends Controller
 {
-    public function __construct(private readonly MonthWorksheet $sheet) {}
+    public function __construct(
+        private readonly MonthWorksheet $sheet,
+        private readonly Reconciliation $reconciliation,
+    ) {}
 
     public function index(Request $request): View|RedirectResponse
     {
@@ -70,6 +76,14 @@ class ChargeWorksheetController extends Controller
                 'contracts' => $active->whereNotNull('lease_contract_id')->pluck('lease_contract_id')->unique()->count(),
             ],
             'canManage' => WorksheetRules::canManage($request->user()),
+            'lock' => PeriodLock::query()->with('lockedBy')->whereDate('month', $month)->first(),
+            'statementsCount' => Statement::query()->whereDate('month', $month)->count(),
+            'differences' => $this->reconciliation->differences($key),
+            'names' => [
+                'leases' => LeaseContract::query()->with('tenant')->get()->keyBy('id'),
+                'managements' => OwnerContract::query()->with('owner')->get()->keyBy('id'),
+                'properties' => Property::query()->pluck('number', 'id'),
+            ],
             'q' => trim((string) $request->query('q', '')),
             'filter' => (string) $request->query('filter', ''),
         ]);

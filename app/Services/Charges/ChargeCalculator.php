@@ -32,8 +32,10 @@ class ChargeCalculator
      * @param  array<string, string>  $rentOverrides  „договор за наем:имот“ → наемът, който ще се начисли
      *     (ръчно променен в работната таблица; 0 = махнат). Дялът на собственика при процент се смята от него
      *     (PROJECT.md, „Дял на собственика“): отстъпката е промяна на реда за наем.
+     * @param  list<int>|null  $onlyLeases  броят се само тези договори за наем (null = всички); за
+     *     „Издай сега“ и сверката на издаден месец
      */
-    public function forMonth(int $companyId, string $month, array $rentOverrides = []): MonthlyCharges
+    public function forMonth(int $companyId, string $month, array $rentOverrides = [], ?array $onlyLeases = null): MonthlyCharges
     {
         if (! preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $month, $m)) {
             throw new InvalidArgumentException("Месецът трябва да е във вида гггг-мм: {$month}");
@@ -43,7 +45,7 @@ class ChargeCalculator
         $end = $start->addMonth();
         $daysInMonth = $start->daysInMonth;
 
-        $leaseDays = $this->leaseDays($companyId, $start, $end);
+        $leaseDays = $this->leaseDays($companyId, $start, $end, $onlyLeases);
         $managementDays = $this->managementDays($companyId, $start, $end);
         $leaseContracts = [];
         foreach ($leaseDays as $days) {
@@ -193,12 +195,13 @@ class ChargeCalculator
     }
 
     /** @return array<int, array<int, array{contract: int, tenant: int, rent: int}>> имот → ден → наем */
-    private function leaseDays(int $companyId, CarbonImmutable $start, CarbonImmutable $end): array
+    private function leaseDays(int $companyId, CarbonImmutable $start, CarbonImmutable $end, ?array $onlyLeases = null): array
     {
         $rows = DB::table('lease_contract_lines as l')
             ->join('lease_contracts as c', fn ($join) => $join->on('c.id', '=', 'l.lease_contract_id')->on('c.company_id', '=', 'l.company_id'))
             ->where('l.company_id', $companyId)
             ->whereNull('c.archived_at')
+            ->when($onlyLeases !== null, fn ($q) => $q->whereIn('l.lease_contract_id', $onlyLeases === [] ? [0] : $onlyLeases))
             ->where('l.valid_from', '<', $end->toDateString())
             ->where(fn ($q) => $q->whereNull('l.valid_to')->orWhere('l.valid_to', '>', $start->toDateString()))
             ->orderBy('l.valid_from')
