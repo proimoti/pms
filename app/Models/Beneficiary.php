@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +21,8 @@ use Illuminate\Validation\ValidationException;
  * Бенефициент: получател на плащането към собственика (PROJECT.md, т. 2).
  *
  * IBAN е шифрован в базата, вижда се и се сменя само с правото за ЕГН и IBAN,
- * не излиза в списъците (toArray/JSON) и в журнала. Засега без екран.
+ * не излиза в списъците (toArray/JSON) и в журнала. Може да е свързан със
+ * собственик („това е самият собственик“). Екранът идва с договорите.
  */
 #[UseFactory(BeneficiaryFactory::class)]
 class Beneficiary extends Model
@@ -30,12 +32,18 @@ class Beneficiary extends Model
 
     protected $table = 'beneficiaries';
 
-    protected $fillable = ['name', 'iban'];
+    protected $fillable = ['name', 'iban', 'owner_id'];
 
     protected $hidden = ['iban'];
 
     /** В журнала само „сменен“, без стойност. */
     protected array $auditProtected = ['iban'];
+
+    /** „Това е самият собственик“: връзка, за да не се въвежда IBAN наново. */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(Owner::class);
+    }
 
     protected static function assignedScopeRule(): string
     {

@@ -2,9 +2,7 @@
 
 namespace App\Models\Concerns;
 
-use App\Models\Builders\NoDeleteBuilder;
 use Illuminate\Database\Eloquent\Builder;
-use LogicException;
 
 /**
  * Записите не се трият, само се архивират (PROJECT.md, т. 2 „Регистър“).
@@ -12,20 +10,7 @@ use LogicException;
  */
 trait Archivable
 {
-    public function newEloquentBuilder($query): NoDeleteBuilder
-    {
-        return new NoDeleteBuilder($query);
-    }
-
-    public function delete()
-    {
-        throw new LogicException(__('registry.no_delete'));
-    }
-
-    public function forceDelete()
-    {
-        throw new LogicException(__('registry.no_delete'));
-    }
+    use NeverDeleted;
 
     public function archive(): void
     {
