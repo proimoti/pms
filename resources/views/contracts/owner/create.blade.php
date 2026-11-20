@@ -86,26 +86,14 @@
                     <th data-calc="fixed">{{ __('contracts.screens.fields.fixed_amount') }}</th>
                 </tr>
                 </thead>
-                <tbody>
+                <tbody id="lines">
                 @for ($i = 0; $i < $lineCount; $i++)
-                    <tr>
-                        <td>
-                            <select name="lines[{{ $i }}][property_id]" aria-label="{{ __('contracts.screens.fields.property') }}">
-                                <option value=""></option>
-                                @foreach ($properties as $property)
-                                    <option value="{{ $property->id }}" @selected((string) old("lines.$i.property_id") === (string) $property->id)>
-                                        № {{ $property->number }} {{ \App\Support\Address::format($property) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </td>
-                        <td><input type="date" name="lines[{{ $i }}][start_on]" value="{{ old("lines.$i.start_on") }}" aria-label="{{ __('contracts.screens.fields.start_on') }}"></td>
-                        <td data-calc="fixed"><input type="text" inputmode="decimal" name="lines[{{ $i }}][fixed_amount]" value="{{ old("lines.$i.fixed_amount") }}" aria-label="{{ __('contracts.screens.fields.fixed_amount') }}"></td>
-                    </tr>
+                    @include('contracts.owner.line-row', ['index' => $i])
                 @endfor
                 </tbody>
             </table>
         </div>
+        <button type="button" class="secondary" id="add-line">{{ __('contracts.screens.add_line') }}</button>
 
         <label for="note">{{ __('contracts.screens.fields.note') }}</label>
         <textarea id="note" name="note">{{ old('note') }}</textarea>
@@ -116,11 +104,25 @@
         </div>
     </form>
 
+    {{-- Образец за нов ред; бутонът „Добави още имоти“ го копира, без ограничение в броя. --}}
+    <template id="line-template">
+        @include('contracts.owner.line-row', ['index' => '__INDEX__'])
+    </template>
+
     {{-- Неприложимите полета за избрания тип се скриват и не се изпращат (PROJECT.md, т. 2 „Договори“). --}}
     <script>
         (function () {
             const calculation = @js(collect($types)->mapWithKeys(fn ($t) => [$t->value => $t->calculation()->value]));
             const type = document.getElementById('type');
+            const lines = document.getElementById('lines');
+            const template = document.getElementById('line-template');
+            let next = {{ $lineCount }};
+
+            document.getElementById('add-line').addEventListener('click', function () {
+                lines.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', String(next++)));
+                update();
+                lines.lastElementChild.querySelector('select').focus();
+            });
 
             function update() {
                 const current = calculation[type.value] ?? null;

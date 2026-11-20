@@ -98,6 +98,52 @@ class OwnerContractScreensTest extends ScreenTestCase
             ->assertSee('12,50 %')->assertSee('Иван Измислен')->assertSee('10.01.2026')->assertSee('01.02.2026');
     }
 
+    public function test_form_starts_with_one_property_row_and_has_an_add_button(): void
+    {
+        $this->record(Property::class);
+        $this->actingAs($this->staff());
+
+        $page = $this->get('/owner-contracts/create')->assertOk()->assertSee('Добави още имоти');
+
+        // Един ред във формата и един образец (template), от който бутонът добавя нови.
+        $this->assertSame(1, substr_count($page->getContent(), 'name="lines[0][property_id]"'));
+        $this->assertStringNotContainsString('name="lines[1][property_id]"', $page->getContent());
+        $this->assertSame(1, substr_count($page->getContent(), 'name="lines[__INDEX__][property_id]"'));
+    }
+
+    public function test_contract_with_many_properties_is_created(): void
+    {
+        $owner = $this->record(Owner::class);
+        $properties = collect(range(1, 12))->map(fn () => $this->record(Property::class));
+        $this->actingAs($this->staff());
+
+        $this->post('/owner-contracts', [
+            'type' => 'representative_percent', 'owner_id' => $owner->id, 'signed_on' => '2026-01-10',
+            'commission_percent' => '10', 'payment_method' => 'cash',
+            'lines' => $properties->map(fn (Property $p) => ['property_id' => $p->id])->all(),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(12, OwnerContract::query()->sole()->lines()->count());
+    }
+
+    public function test_after_an_error_all_entered_property_rows_come_back(): void
+    {
+        $owner = $this->record(Owner::class);
+        $properties = collect(range(1, 7))->map(fn () => $this->record(Property::class));
+        $this->actingAs($this->staff());
+
+        $this->from('/owner-contracts/create')->post('/owner-contracts', [
+            'type' => 'representative_percent', 'owner_id' => $owner->id, 'signed_on' => '2026-01-10',
+            'payment_method' => 'cash', // липсва процентът
+            'lines' => $properties->map(fn (Property $p) => ['property_id' => $p->id])->all(),
+        ])->assertSessionHasErrors('commission_percent');
+
+        $page = $this->get('/owner-contracts/create')->getContent();
+        $this->assertStringContainsString('name="lines[6][property_id]"', $page);
+        $this->assertStringNotContainsString('name="lines[7][property_id]"', $page);
+        $this->assertMatchesRegularExpression('/value="'.$properties[6]->id.'"\s+selected/', $page);
+    }
+
     public function test_staff_creates_a_fixed_contract_with_an_amount_per_property(): void
     {
         $owner = $this->record(Owner::class);

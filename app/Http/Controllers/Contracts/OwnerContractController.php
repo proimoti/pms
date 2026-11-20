@@ -25,8 +25,8 @@ use Illuminate\View\View;
  */
 class OwnerContractController extends RegistryController
 {
-    /** Празни редове за имоти в нов договор. */
-    private const EMPTY_LINES = 5;
+    /** Редове за имоти при отваряне на формата; бутонът „Добави още имоти“ добавя още. */
+    private const EMPTY_LINES = 1;
 
     public function __construct(private readonly OwnerContractService $contracts) {}
 
