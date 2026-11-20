@@ -73,6 +73,7 @@ class LeaseContractController extends RegistryController
             'lines.*.start_on' => ['nullable', new BgDateRule],
             'lines.*.rent' => ['nullable', 'string', 'max:20'],
             'lines.*.deposit' => ['nullable', 'string', 'max:20'],
+            'lines.*.first_period_rent' => ['nullable', 'string', 'max:20'],
         ]);
 
         // Празните редове (без имот) се пропускат.
@@ -163,6 +164,7 @@ class LeaseContractController extends RegistryController
             'lines.*.from' => ['nullable', new BgDateRule],
             'lines.*.rent' => ['nullable', 'string', 'max:20'],
             'lines.*.deposit' => ['nullable', 'string', 'max:20'],
+            'lines.*.first_period_rent' => ['nullable', 'string', 'max:20'],
         ]);
 
         $data['lines'] = array_values(array_filter($data['lines'] ?? [], fn ($line) => ($line['property_id'] ?? null) !== null));
@@ -184,6 +186,8 @@ class LeaseContractController extends RegistryController
 
         return view('contracts.lease.correct', [
             'contract' => $contract,
+            // Договореният наем за първия период е само в първия вариант на всеки имот.
+            'firstLineIds' => $contract->lines->groupBy('property_id')->map(fn ($lines) => $lines->first()->id)->values(),
             'annexNumbers' => $contract->annexes->pluck('number', 'id'),
             'tenants' => Tenant::query()->active()->orderBy('name')->get(['id', 'number', 'name', 'kind']),
             'properties' => Property::query()->active()->orderBy('number')->get(),
@@ -200,6 +204,7 @@ class LeaseContractController extends RegistryController
             'lines.*.valid_to' => ['nullable', new BgDateRule],
             'lines.*.rent' => ['nullable', 'string', 'max:20'],
             'lines.*.deposit' => ['nullable', 'string', 'max:20'],
+            'lines.*.first_period_rent' => ['nullable', 'string', 'max:20'],
         ]);
 
         // Наемателят се пипа само ако е във формата.

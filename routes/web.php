@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Charges\ChargeWorksheetController;
+use App\Http\Controllers\Charges\UpcomingChargeController;
 use App\Http\Controllers\Contracts\LeaseContractController;
 use App\Http\Controllers\Contracts\OwnerContractController;
 use App\Http\Controllers\Registry\BeneficiaryController;
@@ -76,5 +78,24 @@ Route::middleware('auth')->group(function () {
         Route::post('lease-contracts/{contract}/annexes', [LeaseContractController::class, 'storeAnnex'])->middleware($write)->name('lease-contracts.annexes.store');
         Route::get('lease-contracts/{contract}/correct', [LeaseContractController::class, 'editCorrection'])->middleware($write)->name('lease-contracts.correct');
         Route::put('lease-contracts/{contract}/correct', [LeaseContractController::class, 'updateCorrection'])->middleware($write)->name('lease-contracts.correct.update');
+
+        // Начисления: работната таблица на месеца и предстоящите (PROJECT.md, „Работна таблица на месеца“).
+        // Генериране и промени: „четене и запис“ и „всички имоти“.
+        $manage = EnsureRegistryAccess::class.':manage';
+        Route::get('charges', [ChargeWorksheetController::class, 'index'])->name('charges.index');
+        Route::post('charges/generate', [ChargeWorksheetController::class, 'generate'])->middleware($manage)->name('charges.generate');
+        Route::get('charges/create', [ChargeWorksheetController::class, 'create'])->middleware($manage)->name('charges.create');
+        Route::post('charges', [ChargeWorksheetController::class, 'store'])->middleware($manage)->name('charges.store');
+        Route::get('charges/{charge}/edit', [ChargeWorksheetController::class, 'edit'])->middleware($manage)->name('charges.edit');
+        Route::put('charges/{charge}', [ChargeWorksheetController::class, 'update'])->middleware($manage)->name('charges.update');
+        Route::post('charges/{charge}/remove', [ChargeWorksheetController::class, 'remove'])->middleware($manage)->name('charges.remove');
+        Route::post('charges/{charge}/restore', [ChargeWorksheetController::class, 'restore'])->middleware($manage)->name('charges.restore');
+
+        Route::get('upcoming-charges', [UpcomingChargeController::class, 'index'])->name('upcoming-charges.index');
+        Route::get('upcoming-charges/create', [UpcomingChargeController::class, 'create'])->middleware($manage)->name('upcoming-charges.create');
+        Route::post('upcoming-charges', [UpcomingChargeController::class, 'store'])->middleware($manage)->name('upcoming-charges.store');
+        Route::get('upcoming-charges/{upcoming}/edit', [UpcomingChargeController::class, 'edit'])->middleware($manage)->name('upcoming-charges.edit');
+        Route::put('upcoming-charges/{upcoming}', [UpcomingChargeController::class, 'update'])->middleware($manage)->name('upcoming-charges.update');
+        Route::post('upcoming-charges/{upcoming}/cancel', [UpcomingChargeController::class, 'cancel'])->middleware($manage)->name('upcoming-charges.cancel');
     });
 });

@@ -42,7 +42,7 @@
         </div>
 
         <h2>{{ __('contracts.screens.sections.lines') }}</h2>
-        <p class="muted">{{ __('contracts.screens.hints.lines') }} {{ __('contracts.screens.hints.start_on') }} {{ __('contracts.screens.hints.deposit') }}</p>
+        <p class="muted">{{ __('contracts.screens.hints.lines') }} {{ __('contracts.screens.hints.start_on') }} {{ __('contracts.screens.hints.deposit') }} {{ __('contracts.screens.hints.first_period_rent') }}</p>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -51,6 +51,7 @@
                     <th>{{ __('contracts.screens.fields.start_on') }}</th>
                     <th>{{ __('contracts.screens.fields.rent') }} *</th>
                     <th>{{ __('contracts.screens.fields.deposit') }}</th>
+                    <th>{{ __('contracts.screens.fields.first_period_rent') }}</th>
                 </tr>
                 </thead>
                 <tbody id="lines">

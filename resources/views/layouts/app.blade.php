@@ -56,6 +56,11 @@
         dialog.quick-new .quick-new-bar button { margin-top: 0; }
         dialog.quick-new iframe { width: 100%; height: calc(100% - 55px); border: 0; display: block; }
         body.popup .page { padding: 12px; }
+        tr.zero td { color: var(--muted); }
+        tr.removed td { color: var(--muted); text-decoration: line-through; }
+        tr.removed td:nth-last-child(-n+3) { text-decoration: none; }
+        tr.flagged td:first-child { border-left: 3px solid #f59e0b; }
+        tfoot th { color: var(--text); }
     </style>
 </head>
 {{-- Малкият прозорец „+ Нов“ (?popup=1): формата е без менюто. --}}

@@ -41,6 +41,7 @@
                     <th>{{ __('contracts.screens.fields.to') }}</th>
                     <th>{{ __('contracts.screens.fields.rent') }}</th>
                     <th>{{ __('contracts.screens.fields.deposit') }}</th>
+                    <th>{{ __('contracts.screens.fields.first_period_rent') }}</th>
                     <th>{{ __('contracts.screens.fields.basis') }}</th>
                 </tr>
                 </thead>
@@ -73,6 +74,7 @@
                         </td>
                         <td><input type="text" inputmode="decimal" name="lines[{{ $line->id }}][rent]" value="{{ old("lines.{$line->id}.rent", $line->rent) }}" aria-label="{{ __('contracts.screens.fields.rent') }}"></td>
                         <td><input type="text" inputmode="decimal" name="lines[{{ $line->id }}][deposit]" value="{{ old("lines.{$line->id}.deposit", $line->deposit) }}" aria-label="{{ __('contracts.screens.fields.deposit') }}"></td>
+                        <td>@if ($firstLineIds->contains($line->id))<input type="text" inputmode="decimal" name="lines[{{ $line->id }}][first_period_rent]" value="{{ old('lines.'.$line->id.'.first_period_rent', $line->first_period_rent) }}" aria-label="{{ __('contracts.screens.fields.first_period_rent') }}">@else — @endif</td>
                         <td>{{ $basis($line->annex_id) }}</td>
                     </tr>
                 @endforeach

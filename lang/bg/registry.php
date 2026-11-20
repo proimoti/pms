@@ -29,6 +29,7 @@ return [
         'brokers' => 'Отговорни лица',
         'owner-contracts' => 'Договори за управление',
         'lease-contracts' => 'Договори за наем',
+        'charges' => 'Начисления',
     ],
     'new' => [
         'properties' => 'Нов имот',

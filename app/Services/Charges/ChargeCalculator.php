@@ -28,7 +28,12 @@ class ChargeCalculator
 {
     private const MAX_CENTS = 100_000_000;
 
-    public function forMonth(int $companyId, string $month): MonthlyCharges
+    /**
+     * @param  array<string, string>  $rentOverrides  „договор за наем:имот“ → наемът, който ще се начисли
+     *     (ръчно променен в работната таблица; 0 = махнат). Дялът на собственика при процент се смята от него
+     *     (PROJECT.md, „Дял на собственика“): отстъпката е промяна на реда за наем.
+     */
+    public function forMonth(int $companyId, string $month, array $rentOverrides = []): MonthlyCharges
     {
         if (! preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $month, $m)) {
             throw new InvalidArgumentException("Месецът трябва да е във вида гггг-мм: {$month}");
@@ -55,7 +60,7 @@ class ChargeCalculator
         sort($properties);
 
         foreach ($properties as $propertyId) {
-            $this->property($month, $start, $daysInMonth, $propertyId,
+            $this->property($month, $start, $daysInMonth, $propertyId, $rentOverrides,
                 $leaseDays[$propertyId] ?? [], $managementDays[$propertyId] ?? [], $firstLines, $charges, $forDecision);
         }
 
@@ -68,7 +73,7 @@ class ChargeCalculator
      * @param  array<int, array>  $lease  ден (0…) → договор за наем, наемател, наем
      * @param  array<int, array>  $management  ден (0…) → договор за управление, начин, сума, процент
      */
-    private function property(string $month, CarbonImmutable $start, int $daysInMonth, int $propertyId,
+    private function property(string $month, CarbonImmutable $start, int $daysInMonth, int $propertyId, array $rentOverrides,
         array $lease, array $management, array $firstLines, array &$charges, array &$forDecision): void
     {
         // Към собственика при процент: наемът (разпределен по дни) и комисионата по договор за управление.
@@ -99,6 +104,13 @@ class ChargeCalculator
                 && $first['from'] >= $start->toDateString() && $first['from'] < $start->addMonth()->toDateString()
                 && count($days) < $daysInMonth;
             $amount = $agreed ? Cents::from($first['first_period_rent']) : $computed;
+
+            // Ръчно променен наем в работната таблица: начислява се той, и дялът на собственика е от него.
+            $override = $rentOverrides[$contractId.':'.$propertyId] ?? null;
+            if ($override !== null) {
+                $amount = Cents::from($override);
+            }
+            $fromAmount = $agreed || $override !== null;
             $this->guard($amount);
 
             $tenantId = reset($days)['tenant'];
@@ -119,7 +131,7 @@ class ChargeCalculator
                 $percentDays[$key] = ($percentDays[$key] ?? 0) + 1;
                 // Комисионата по части: от пресметнатия наем; от договорения, ако е ползван.
                 $percentCommission[$key] = ($percentCommission[$key] ?? 0)
-                    + ($agreed ? $shares[$day] * $daysInMonth : $row['rent']) * $owner['percent'];
+                    + ($fromAmount ? $shares[$day] * $daysInMonth : $row['rent']) * $owner['percent'];
             }
         }
 

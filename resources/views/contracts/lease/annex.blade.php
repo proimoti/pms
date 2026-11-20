@@ -44,6 +44,7 @@
                     <th>{{ __('contracts.screens.fields.from') }}</th>
                     <th>{{ __('contracts.screens.fields.new_rent') }}</th>
                     <th>{{ __('contracts.screens.fields.new_deposit') }}</th>
+                    <th>{{ __('contracts.screens.fields.first_period_rent_add') }}</th>
                 </tr>
                 </thead>
                 <tbody id="lines">

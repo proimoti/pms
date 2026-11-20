@@ -40,6 +40,7 @@
                 <th>{{ __('contracts.screens.fields.to') }}</th>
                 <th class="num">{{ __('contracts.screens.fields.rent') }}</th>
                 <th class="num">{{ __('contracts.screens.fields.deposit') }}</th>
+                <th class="num">{{ __('contracts.screens.fields.first_period_rent') }}</th>
                 <th>{{ __('contracts.screens.fields.basis') }}</th>
             </tr>
             </thead>
@@ -56,6 +57,7 @@
                     </td>
                     <td class="num">{{ Format::money($line->rent) }}</td>
                     <td class="num">{{ Format::money($line->deposit) }}</td>
+                    <td class="num">{{ $line->first_period_rent === null ? '' : Format::money($line->first_period_rent) }}</td>
                     <td>{{ $basis($line->annex_id) }}</td>
                 </tr>
             @endforeach

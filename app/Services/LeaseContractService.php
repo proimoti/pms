@@ -91,20 +91,21 @@ class LeaseContractService extends ContractService
     }
 
     /** Добавя имот в договора от дадена дата. */
-    public function addProperty(LeaseContractAnnex $annex, Property|int $property, $from, $rent, $deposit = null): LeaseContractLine
+    public function addProperty(LeaseContractAnnex $annex, Property|int $property, $from, $rent, $deposit = null, $firstPeriodRent = null): LeaseContractLine
     {
-        return DB::transaction(function () use ($annex, $property, $from, $rent, $deposit) {
+        return DB::transaction(function () use ($annex, $property, $from, $rent, $deposit, $firstPeriodRent) {
             $contract = $this->contractOf($annex);
             $before = $this->failures();
             $propertyId = $this->attempt(fn () => $this->propertyId($contract->company_id, $property));
             $rent = $this->attempt(fn () => $this->rent($rent));
             $deposit = $this->attempt(fn () => $this->deposit($deposit));
+            $firstPeriodRent = $this->attempt(fn () => $this->firstPeriodRent($firstPeriodRent));
             $from = $this->attempt(fn () => $this->addDate($contract, $from));
             if ($this->failures() > $before) {
                 throw new SkippedCheck;
             }
 
-            $line = $this->newLine($contract, $propertyId, $from, $rent, $deposit, $annex);
+            $line = $this->newLine($contract, $propertyId, $from, $rent, $deposit, $annex, $firstPeriodRent);
             $this->ensurePropertyIsFree($contract->company_id, $propertyId, $contract);
 
             return $line;
@@ -139,7 +140,8 @@ class LeaseContractService extends ContractService
 
                 $this->attempt(fn () => match ($line['action'] ?? null) {
                     'change' => $this->changeTerms($annex, $property, $lineFrom, $line['rent'] ?? null, $line['deposit'] ?? null),
-                    'add' => $this->addProperty($annex, $property, $lineFrom, $line['rent'] ?? null, $line['deposit'] ?? null),
+                    'add' => $this->addProperty($annex, $property, $lineFrom, $line['rent'] ?? null, $line['deposit'] ?? null,
+                        $line['first_period_rent'] ?? null),
                     'remove' => $this->removeProperty($annex, $property, $lineFrom),
                     default => $this->reject('lines', 'line_action_unknown'),
                 });
@@ -225,6 +227,17 @@ class LeaseContractService extends ContractService
 
         if (array_key_exists('deposit', $values)) {
             $line->deposit = $this->deposit($values['deposit']);
+        }
+
+        // Договореният наем за първия период е само в първия вариант на имота в договора.
+        if (array_key_exists('first_period_rent', $values)) {
+            $first = $contract->lines()->where('property_id', $line->getOriginal('property_id'))
+                ->orderBy('valid_from')->orderBy('id')->value('id');
+            $value = $this->firstPeriodRent($values['first_period_rent']);
+            if ($first !== $line->id && $value !== null) {
+                $this->reject('lines', 'first_period_rent_not_first');
+            }
+            $line->first_period_rent = $first === $line->id ? $value : null;
         }
     }
 

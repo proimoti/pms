@@ -23,4 +23,5 @@
     <td><x-date-input name="lines[{{ $index }}][from]" aria-label="{{ __('contracts.screens.fields.from') }}" :value="old('lines.'.$index.'.from')" /></td>
     <td><input type="text" inputmode="decimal" name="lines[{{ $index }}][rent]" value="{{ old("lines.$index.rent") }}" aria-label="{{ __('contracts.screens.fields.new_rent') }}"></td>
     <td><input type="text" inputmode="decimal" name="lines[{{ $index }}][deposit]" value="{{ old("lines.$index.deposit") }}" aria-label="{{ __('contracts.screens.fields.new_deposit') }}"></td>
+    <td><input type="text" inputmode="decimal" name="lines[{{ $index }}][first_period_rent]" value="{{ old("lines.$index.first_period_rent") }}" aria-label="{{ __('contracts.screens.fields.first_period_rent') }}"></td>
 </tr>

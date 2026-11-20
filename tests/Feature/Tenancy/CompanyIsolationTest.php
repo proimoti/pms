@@ -2,7 +2,19 @@
 
 namespace Tests\Feature\Tenancy;
 
+use App\Enums\OwnerContractType;
+use App\Enums\PaymentMethod;
 use App\Models\Broker;
+use App\Models\ChargeDraft;
+use App\Models\ChargeMonth;
+use App\Models\Owner;
+use App\Models\Property;
+use App\Models\Tenant;
+use App\Models\UpcomingCharge;
+use App\Services\Charges\MonthWorksheet;
+use App\Services\Charges\UpcomingChargeService;
+use App\Services\LeaseContractService;
+use App\Services\OwnerContractService;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -144,5 +156,32 @@ class CompanyIsolationTest extends TestCase
             [$this->alphaUser->id, $this->betaUser->id, $admin->id],
             User::query()->pluck('id')->all(),
         );
+    }
+
+    /** Начисленията (работната таблица, генерирането, предстоящите) на фирма B не се виждат от фирма A. */
+    public function test_company_a_user_sees_no_charges_of_company_b(): void
+    {
+        $this->actingAs($this->betaUser);
+        $property = Property::factory()->create();
+        app(OwnerContractService::class)->create([
+            "type" => OwnerContractType::RepresentativePercent, "owner_id" => Owner::factory()->create()->id,
+            "signed_on" => "2026-01-01", "commission_percent" => "10", "payment_method" => PaymentMethod::Cash,
+            "lines" => [["property_id" => $property->id]],
+        ]);
+        $lease = app(LeaseContractService::class)->create([
+            "tenant_id" => Tenant::factory()->create()->id, "signed_on" => "2026-01-10",
+            "lines" => [["property_id" => $property->id, "rent" => "600"]],
+        ]);
+        app(UpcomingChargeService::class)->create(["lease_contract_id" => $lease->id, "property_id" => $property->id,
+            "type" => "penalty", "month" => "2026-12", "amount" => "50"]);
+        app(MonthWorksheet::class)->generate("2026-12");
+        $this->assertSame(3, ChargeDraft::query()->count());
+
+        $this->actingAs($this->alphaUser);
+        $this->assertSame(0, ChargeDraft::query()->count());
+        $this->assertSame(0, ChargeMonth::query()->count());
+        $this->assertSame(0, UpcomingCharge::query()->count());
+        $this->assertSame([], app(MonthWorksheet::class)->warnings("2026-12"));
+        $this->assertSame(0, app(MonthWorksheet::class)->generate("2026-12")->company_id === $this->alpha->id ? ChargeDraft::query()->count() : -1);
     }
 }
