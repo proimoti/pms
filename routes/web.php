@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Contracts\OwnerContractController;
+use App\Http\Controllers\Registry\BeneficiaryController;
 use App\Http\Controllers\Registry\BrokerController;
 use App\Http\Controllers\Registry\OwnerController;
 use App\Http\Controllers\Registry\PropertyController;
@@ -26,6 +28,7 @@ Route::middleware('auth')->group(function () {
         $sections = [
             'properties' => PropertyController::class,
             'owners' => OwnerController::class,
+            'beneficiaries' => BeneficiaryController::class,
             'tenants' => TenantController::class,
             'brokers' => BrokerController::class,
         ];
@@ -43,5 +46,16 @@ Route::middleware('auth')->group(function () {
             Route::post("{$section}/{{$parameter}}/archive", [$controller, 'archive'])->middleware($write)->name("{$section}.archive");
             Route::post("{$section}/{{$parameter}}/restore", [$controller, 'restore'])->middleware($write)->name("{$section}.restore");
         }
+
+        // Договори за управление (PROJECT.md, т. 2 „Договори“). Анексите идват в следващата стъпка.
+        $write = EnsureRegistryAccess::class.':write';
+        Route::get('owner-contracts', [OwnerContractController::class, 'index'])->name('owner-contracts.index');
+        Route::get('owner-contracts/create', [OwnerContractController::class, 'create'])->middleware($write)->name('owner-contracts.create');
+        Route::post('owner-contracts', [OwnerContractController::class, 'store'])->middleware($write)->name('owner-contracts.store');
+        Route::get('owner-contracts/{contract}', [OwnerContractController::class, 'show'])->name('owner-contracts.show');
+        Route::get('owner-contracts/{contract}/edit', [OwnerContractController::class, 'edit'])->middleware($write)->name('owner-contracts.edit');
+        Route::put('owner-contracts/{contract}', [OwnerContractController::class, 'update'])->middleware($write)->name('owner-contracts.update');
+        Route::post('owner-contracts/{contract}/archive', [OwnerContractController::class, 'archive'])->middleware($write)->name('owner-contracts.archive');
+        Route::post('owner-contracts/{contract}/restore', [OwnerContractController::class, 'restore'])->middleware($write)->name('owner-contracts.restore');
     });
 });

@@ -100,6 +100,27 @@ class ContractExtensionTest extends ContractTestCase
         $this->assertRejected(fn () => $this->leases->extendTerm($annex, '2028-12-31'), 'end_on');
     }
 
+    public function test_end_date_is_corrected_directly_only_until_the_first_extension(): void
+    {
+        $owner = $this->percentContract([$this->property()], ['end_on' => '2026-12-31']);
+        $lease = $this->leaseContract([$this->property()], ['end_on' => '2026-12-31']);
+
+        // Печатна грешка, докато няма удължаване: направо.
+        $owner->update(['end_on' => '2026-11-30']);
+        $lease->update(['end_on' => '2026-11-30']);
+        $this->assertSame('2026-11-30', $owner->fresh()->end_on->toDateString());
+
+        $this->contracts->extendTerm($this->contracts->addAnnex($owner, 1, '2026-11-15'), '2027-12-31');
+        $this->leases->extendTerm($this->leases->addAnnex($lease, 1, '2026-11-15'), '2027-12-31');
+
+        $this->assertRejected(fn () => $owner->fresh()->update(['end_on' => '2028-01-31']), 'end_on');
+        $this->assertRejected(fn () => $lease->fresh()->update(['end_on' => null]), 'end_on');
+        $this->assertSame('2027-12-31', $lease->fresh()->end_on->toDateString());
+        // Другите информационни полета се поправят и след удължаване.
+        $lease->fresh()->update(['note' => 'Измислена поправка']);
+        $this->assertSame('Измислена поправка', $lease->fresh()->note);
+    }
+
     public function test_database_refuses_an_extension_that_is_not_later(): void
     {
         $contract = $this->leaseContract([$this->property()], ['end_on' => '2026-12-31']);

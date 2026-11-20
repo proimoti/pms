@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
  * Общото за заглавието на договор за управление и договор за наем: номер
  * (най-голям + 1), архив само при грешно въведен договор, дати, „активен“ се
  * смята, проверка за застъпване при прекратяване и връщане от архива.
- * Моделът има връзка lines() към редовете си (имотите с периоди) и сам
+ * Моделът има връзки lines() (имотите с периоди) и extensions() (удължавания) и сам
  * дава правилото за обхват „само прикачените“ (assignedScopeRule).
  */
 trait ContractHeader
@@ -32,6 +32,15 @@ trait ContractHeader
             if ($contract->isDirty('terminated_on') && $contract->terminated_on !== null
                 && $start !== null && $contract->terminated_on->lte($start)) {
                 throw ValidationException::withMessages(['terminated_on' => __('contracts.messages.terminated_before_start')]);
+            }
+
+            // След удължаване с анекс срокът е този от последното удължаване:
+            // направо се поправя само дотогава (PROJECT.md, „Обхват и договори“).
+            if ($contract->isDirty('end_on')) {
+                $latest = $contract->extensions()->withoutGlobalScopes()->orderByDesc('end_on')->value('end_on');
+                if ($latest !== null && $contract->end_on?->toDateString() !== CarbonImmutable::parse($latest)->toDateString()) {
+                    throw ValidationException::withMessages(['end_on' => __('contracts.messages.end_on_locked')]);
+                }
             }
         });
 
@@ -97,6 +106,20 @@ trait ContractHeader
         }
 
         return $this->linesOn($day)->isNotEmpty();
+    }
+
+    /** Състоянието за екраните: archived, terminated, active, upcoming или empty. */
+    public function stateOn($date = null): string
+    {
+        $day = CarbonImmutable::parse($date ?? today())->startOfDay();
+
+        return match (true) {
+            $this->isArchived() => 'archived',
+            $this->terminated_on !== null && $day->gte($this->terminated_on) => 'terminated',
+            $this->isActiveOn($day) => 'active',
+            ($start = $this->startsOn()) !== null && $start->gt($day) => 'upcoming',
+            default => 'empty',
+        };
     }
 
     /** Редовете (имотите), които действат на датата. */

@@ -61,6 +61,9 @@
     @if (session('status') && is_string(session('status')) && ! str_starts_with(session('status'), 'two-factor'))
         <div class="status">{{ session('status') }}</div>
     @endif
+    @if (session('warning'))
+        <div class="warning">{{ session('warning') }}</div>
+    @endif
     @if ($errors->any())
         <div class="errors">
             @foreach ($errors->all() as $error)

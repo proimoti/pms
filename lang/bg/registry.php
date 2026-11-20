@@ -24,20 +24,26 @@ return [
     'sections' => [
         'properties' => 'Имоти',
         'owners' => 'Собственици',
+        'beneficiaries' => 'Бенефициенти',
         'tenants' => 'Наематели',
         'brokers' => 'Отговорни лица',
+        'owner-contracts' => 'Договори за управление',
     ],
     'new' => [
         'properties' => 'Нов имот',
         'owners' => 'Нов собственик',
+        'beneficiaries' => 'Нов бенефициент',
         'tenants' => 'Нов наемател',
         'brokers' => 'Ново отговорно лице',
+        'owner-contracts' => 'Нов договор за управление',
     ],
     'one' => [
         'properties' => 'Имот',
         'owners' => 'Собственик',
+        'beneficiaries' => 'Бенефициент',
         'tenants' => 'Наемател',
         'brokers' => 'Отговорно лице',
+        'owner-contracts' => 'Договор за управление',
     ],
 
     // Действия и надписи
@@ -95,5 +101,13 @@ return [
         'country' => 'Държава (код, напр. BG)',
         'phone' => 'Телефон',
         'email' => 'Имейл',
+        'iban' => 'IBAN',
+        'beneficiary_owner' => 'Връзка със собственик',
     ],
+
+    // Бенефициенти
+    'iban_hidden' => 'Скрит (нямате право да виждате IBAN)',
+    'iban_missing' => 'Няма въведен IBAN',
+    'iban_hint' => 'Може и с интервали. Проверява се контролната сума.',
+    'owner_himself' => 'това е самият собственик',
 ];
