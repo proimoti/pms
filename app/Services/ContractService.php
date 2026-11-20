@@ -67,6 +67,44 @@ abstract class ContractService
         });
     }
 
+    /**
+     * Удължава срока (дата край) по анекс (PROJECT.md, т. 2 „Удължаване с анекс“).
+     * Новият срок е по-късен от сегашния; старият остава в историята. Договор
+     * без срок или прекратен не се удължава. Срокът не влияе на сумите.
+     */
+    public function extendTerm(Model $annex, $endOn): Model
+    {
+        return DB::transaction(function () use ($annex, $endOn) {
+            $contract = $this->contractOf($annex);
+            $endOn = $this->date($endOn, 'end_on', 'extension_date_required');
+
+            if ($contract->end_on === null) {
+                $this->reject('end_on', 'extension_without_term');
+            }
+            if ($contract->terminated_on !== null) {
+                $this->reject('end_on', 'extension_after_termination');
+            }
+            if ($contract->extensions()->where('annex_id', $annex->id)->exists()) {
+                $this->reject('end_on', 'extension_annex_used');
+            }
+            if ($endOn->lte($contract->end_on)) {
+                $this->reject('end_on', 'extension_not_later', ['date' => $contract->end_on->format('d.m.Y')]);
+            }
+
+            $extension = $contract->extensions()->make();
+            $extension->forceFill([
+                'company_id' => $contract->company_id,
+                'annex_id' => $annex->id,
+                'previous_end_on' => $contract->end_on,
+                'end_on' => $endOn,
+            ])->save();
+
+            $contract->forceFill(['end_on' => $endOn])->save();
+
+            return $extension;
+        });
+    }
+
     /** Маха имот от договора от дадена дата (от нея нататък не е в договора). */
     public function removeProperty(Model $annex, Property|int $property, $from): Model
     {
@@ -152,11 +190,15 @@ abstract class ContractService
         return (int) $companyId;
     }
 
+    /**
+     * Имот на фирмата, неархивиран и видим за потребителя: служител с обхват
+     * „само прикачените“ слага в договор само прикачени към него имоти.
+     */
     protected function propertyId(int $companyId, Property|int|string|null $property): int
     {
         $id = $property instanceof Property ? $property->id : $property;
 
-        $exists = $id !== null && Property::query()->withoutGlobalScopes()
+        $exists = $id !== null && Property::query()
             ->where('company_id', $companyId)->whereNull('archived_at')->whereKey($id)->exists();
 
         return $exists ? (int) $id : $this->reject('lines', 'property_not_found');

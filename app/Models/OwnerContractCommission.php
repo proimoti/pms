@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\CalculationMethod;
 use App\Models\Concerns\ContractVersion;
+use App\Models\Scopes\RegistryVisibilityScope;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -27,5 +29,11 @@ class OwnerContractCommission extends Model
     public function annex(): BelongsTo
     {
         return $this->belongsTo(OwnerContractAnnex::class, 'annex_id');
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако се вижда договорът. */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::throughContracts('owner_contract_lines', 'owner_contract_id', 'owner_contract_id');
     }
 }

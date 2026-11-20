@@ -3,7 +3,6 @@
 namespace App\Models\Concerns;
 
 use App\Models\Property;
-use App\Models\Scopes\RegistryVisibilityScope;
 use App\Services\ContractService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
@@ -14,7 +13,8 @@ use Illuminate\Validation\ValidationException;
  * Общото за заглавието на договор за управление и договор за наем: номер
  * (най-голям + 1), архив само при грешно въведен договор, дати, „активен“ се
  * смята, проверка за застъпване при прекратяване и връщане от архива.
- * Моделът има връзка lines() към редовете си (имотите с периоди).
+ * Моделът има връзка lines() към редовете си (имотите с периоди) и сам
+ * дава правилото за обхват „само прикачените“ (assignedScopeRule).
  */
 trait ContractHeader
 {
@@ -73,12 +73,6 @@ trait ContractHeader
     public function hasCharges(): bool
     {
         return false;
-    }
-
-    /** До част 4 служител с обхват „само прикачените“ не вижда договорите. */
-    protected static function assignedScopeRule(): string
-    {
-        return RegistryVisibilityScope::NONE;
     }
 
     /** Началото на договора = най-ранното начало на ред (имот). */

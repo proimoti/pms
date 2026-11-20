@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\ContractHeader;
+use App\Models\Scopes\RegistryVisibilityScope;
 use App\Services\ContractService;
 use App\Services\LeaseContractService;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -40,5 +42,16 @@ class LeaseContract extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(LeaseContractLine::class);
+    }
+
+    public function extensions(): HasMany
+    {
+        return $this->hasMany(LeaseContractExtension::class);
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако поне един имот в договора е прикачен. */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::throughContracts('lease_contract_lines', 'lease_contract_id', 'id');
     }
 }

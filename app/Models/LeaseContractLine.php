@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Concerns\ContractVersion;
+use App\Models\Scopes\RegistryVisibilityScope;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -35,5 +37,11 @@ class LeaseContractLine extends Model
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако се вижда договорът (целият договор). */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::throughContracts('lease_contract_lines', 'lease_contract_id', 'lease_contract_id');
     }
 }

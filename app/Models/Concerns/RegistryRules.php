@@ -6,6 +6,7 @@ use App\Enums\AccessLevel;
 use App\Enums\Role;
 use App\Models\Scopes\RegistryVisibilityScope;
 use App\Models\User;
+use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 
@@ -40,8 +41,11 @@ trait RegistryRules
         });
     }
 
-    /** Какво вижда служител с обхват „само прикачените имоти“. По подразбиране всичко. */
-    protected static function assignedScopeRule(): string
+    /**
+     * Какво вижда служител с обхват „само прикачените имоти“. По подразбиране всичко.
+     * Правило от RegistryVisibilityScope или своя проверка (Closure).
+     */
+    protected static function assignedScopeRule(): string|Closure
     {
         return RegistryVisibilityScope::ALL;
     }

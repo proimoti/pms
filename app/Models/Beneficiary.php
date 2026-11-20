@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Concerns\RegistryRecord;
 use App\Models\Scopes\RegistryVisibilityScope;
 use App\Support\Iban;
+use Closure;
 use Database\Factories\BeneficiaryFactory;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -45,11 +46,6 @@ class Beneficiary extends Model
         return $this->belongsTo(Owner::class);
     }
 
-    protected static function assignedScopeRule(): string
-    {
-        return RegistryVisibilityScope::NONE;
-    }
-
     protected function iban(): Attribute
     {
         return Attribute::make(
@@ -87,5 +83,11 @@ class Beneficiary extends Model
         $user = Auth::user();
 
         return $user->role === Role::Staff && $user->can_view_sensitive;
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако е бенефициент (в някой вариант) във видим договор за управление. */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::referencedByContracts('owner_contract_payees', 'beneficiary_id', 'owner_contract_lines', 'owner_contract_id', 'owner_contract_id');
     }
 }

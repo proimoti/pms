@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\CalculationMethod;
 use App\Enums\PaymentMethod;
 use App\Models\Concerns\ContractVersion;
+use App\Models\Scopes\RegistryVisibilityScope;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -33,5 +35,11 @@ class OwnerContractPayee extends Model
     public function beneficiary(): BelongsTo
     {
         return $this->belongsTo(Beneficiary::class);
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако се вижда договорът. */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::throughContracts('owner_contract_lines', 'owner_contract_id', 'owner_contract_id');
     }
 }

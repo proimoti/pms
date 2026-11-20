@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\PartyKind;
 use App\Models\Base\Party;
+use App\Models\Scopes\RegistryVisibilityScope;
+use Closure;
 use Database\Factories\OwnerFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Validation\ValidationException;
@@ -36,5 +38,11 @@ class Owner extends Party
                 ])]);
             }
         });
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако е собственик във видим договор за управление. */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::referencedByContracts('owner_contracts', 'owner_id', 'owner_contract_lines', 'owner_contract_id');
     }
 }

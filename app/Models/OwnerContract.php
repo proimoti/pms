@@ -5,8 +5,10 @@ namespace App\Models;
 use App\Enums\CalculationMethod;
 use App\Enums\OwnerContractType;
 use App\Models\Concerns\ContractHeader;
+use App\Models\Scopes\RegistryVisibilityScope;
 use App\Services\ContractService;
 use App\Services\OwnerContractService;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -85,6 +87,11 @@ class OwnerContract extends Model
         return $this->hasMany(OwnerContractLine::class);
     }
 
+    public function extensions(): HasMany
+    {
+        return $this->hasMany(OwnerContractExtension::class);
+    }
+
     public function commissions(): HasMany
     {
         return $this->hasMany(OwnerContractCommission::class);
@@ -104,5 +111,11 @@ class OwnerContract extends Model
     public function payeeOn($date): ?OwnerContractPayee
     {
         return $this->versionsOn($this->payees(), $date)->first();
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако поне един имот в договора е прикачен. */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::throughContracts('owner_contract_lines', 'owner_contract_id', 'id');
     }
 }

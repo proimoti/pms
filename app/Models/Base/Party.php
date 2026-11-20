@@ -6,6 +6,7 @@ use App\Enums\PartyKind;
 use App\Models\Concerns\HasCompanyNumber;
 use App\Models\Concerns\RegistryRecord;
 use App\Models\Scopes\RegistryVisibilityScope;
+use Closure;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,8 +31,8 @@ abstract class Party extends Model
         return ['kind' => PartyKind::class];
     }
 
-    /** Служител с „само прикачените имоти“ не ги вижда, докато не дойдат договорите. */
-    protected static function assignedScopeRule(): string
+    /** По подразбиране служител с „само прикачените имоти“ не ги вижда. Собственикът и наемателят го сменят: виждат се през договорите. */
+    protected static function assignedScopeRule(): string|Closure
     {
         return RegistryVisibilityScope::NONE;
     }

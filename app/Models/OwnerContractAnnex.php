@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\NeverDeleted;
 use App\Models\Concerns\RegistryRules;
 use App\Models\Scopes\RegistryVisibilityScope;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -20,14 +21,14 @@ class OwnerContractAnnex extends Model
         return ['number' => 'integer', 'signed_on' => 'immutable_date'];
     }
 
-    /** До част 4 служител с обхват „само прикачените“ не вижда договорите. */
-    protected static function assignedScopeRule(): string
-    {
-        return RegistryVisibilityScope::NONE;
-    }
-
     public function contract(): BelongsTo
     {
         return $this->belongsTo(OwnerContract::class, 'owner_contract_id');
+    }
+
+    /** Обхват „само прикачените имоти“: вижда се, ако се вижда договорът. */
+    protected static function assignedScopeRule(): string|Closure
+    {
+        return RegistryVisibilityScope::throughContracts('owner_contract_lines', 'owner_contract_id', 'owner_contract_id');
     }
 }
