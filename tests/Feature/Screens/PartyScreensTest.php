@@ -80,8 +80,10 @@ class PartyScreensTest extends ScreenTestCase
 
     public function test_search_by_name_number_or_eik(): void
     {
-        $this->record(Tenant::class, ['name' => 'Мария Измислена', 'number' => 31]);
-        $this->record(Tenant::class, ['kind' => 'legal', 'name' => 'Тест Делта ООД', 'eik' => '111111111']);
+        // Постоянни телефон и имейл: случайните понякога съдържат „31“ и търсенето ги намира.
+        $fixed = ['phone' => '0888000000', 'street_number' => '1'];
+        $this->record(Tenant::class, ['name' => 'Мария Измислена', 'number' => 31, 'email' => 'maria@example.test'] + $fixed);
+        $this->record(Tenant::class, ['kind' => 'legal', 'name' => 'Тест Делта ООД', 'eik' => '111111111', 'email' => 'delta@example.test'] + $fixed);
         $this->actingAs($this->staff());
 
         $this->get('/tenants?q=Мария')->assertSee('Мария Измислена')->assertDontSee('Тест Делта ООД');
