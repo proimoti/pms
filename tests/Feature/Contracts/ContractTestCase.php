@@ -6,8 +6,11 @@ use App\Enums\OwnerContractType;
 use App\Enums\PaymentMethod;
 use App\Models\Owner;
 use App\Models\OwnerContract;
+use App\Models\LeaseContract;
 use App\Models\Property;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\LeaseContractService;
 use App\Services\OwnerContractService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +28,8 @@ abstract class ContractTestCase extends TestCase
 
     protected OwnerContractService $contracts;
 
+    protected LeaseContractService $leases;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -32,6 +37,7 @@ abstract class ContractTestCase extends TestCase
         $this->otherStaff = User::factory()->create();
         $this->actingAs($this->staff);
         $this->contracts = app(OwnerContractService::class);
+        $this->leases = app(LeaseContractService::class);
     }
 
     protected function property(): Property
@@ -66,6 +72,21 @@ abstract class ContractTestCase extends TestCase
             'signed_on' => '2026-01-10',
             'payment_method' => PaymentMethod::Cash,
             'lines' => array_map(fn (Property $p) => ['property_id' => $p->id, 'fixed_amount' => '460.00'], $properties),
+        ], $overrides));
+    }
+
+    protected function tenant(): Tenant
+    {
+        return Tenant::factory()->create();
+    }
+
+    /** Договор за наем от 10.01.2026: наем 600 € и депозит 1200 € на имот. */
+    protected function leaseContract(array $properties, array $overrides = []): LeaseContract
+    {
+        return $this->leases->create(array_merge([
+            'tenant_id' => $this->tenant()->id,
+            'signed_on' => '2026-01-10',
+            'lines' => array_map(fn (Property $p) => ['property_id' => $p->id, 'rent' => '600.00', 'deposit' => '1200.00'], $properties),
         ], $overrides));
     }
 

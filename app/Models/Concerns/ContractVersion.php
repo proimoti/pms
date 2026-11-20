@@ -2,14 +2,12 @@
 
 namespace App\Models\Concerns;
 
-use App\Models\OwnerContract;
-use App\Models\OwnerContractAnnex;
 use App\Models\Scopes\RegistryVisibilityScope;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Вариант с период „от–до“ в договор за управление (ред, процент, бенефициент).
+ * Вариант с период „от–до“ в договор (ред, процент, бенефициент).
  * Не се трие: при анекс се затваря („до“) и се добавя нов вариант.
+ * Моделът сам дава връзките contract() и annex().
  */
 trait ContractVersion
 {
@@ -27,15 +25,5 @@ trait ContractVersion
     protected static function assignedScopeRule(): string
     {
         return RegistryVisibilityScope::NONE;
-    }
-
-    public function contract(): BelongsTo
-    {
-        return $this->belongsTo(OwnerContract::class, 'owner_contract_id');
-    }
-
-    public function annex(): BelongsTo
-    {
-        return $this->belongsTo(OwnerContractAnnex::class, 'annex_id');
     }
 }

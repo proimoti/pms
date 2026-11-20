@@ -20,6 +20,16 @@ class OwnerContractPayee extends Model
         return ['calculation' => CalculationMethod::class, 'payment_method' => PaymentMethod::class];
     }
 
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(OwnerContract::class, 'owner_contract_id');
+    }
+
+    public function annex(): BelongsTo
+    {
+        return $this->belongsTo(OwnerContractAnnex::class, 'annex_id');
+    }
+
     public function beneficiary(): BelongsTo
     {
         return $this->belongsTo(Beneficiary::class);

@@ -22,6 +22,16 @@ class OwnerContractLine extends Model
         return ['calculation' => CalculationMethod::class, 'fixed_amount' => 'decimal:2'];
     }
 
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(OwnerContract::class, 'owner_contract_id');
+    }
+
+    public function annex(): BelongsTo
+    {
+        return $this->belongsTo(OwnerContractAnnex::class, 'annex_id');
+    }
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

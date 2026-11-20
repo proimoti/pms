@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\CalculationMethod;
 use App\Models\Concerns\ContractVersion;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** Процент на комисионата за период (само при тип „Представител, %“). */
 class OwnerContractCommission extends Model
@@ -16,5 +17,15 @@ class OwnerContractCommission extends Model
     protected function casts(): array
     {
         return ['calculation' => CalculationMethod::class, 'percent' => 'decimal:2'];
+    }
+
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(OwnerContract::class, 'owner_contract_id');
+    }
+
+    public function annex(): BelongsTo
+    {
+        return $this->belongsTo(OwnerContractAnnex::class, 'annex_id');
     }
 }
