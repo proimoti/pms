@@ -105,6 +105,70 @@ abstract class ContractService
         });
     }
 
+    /**
+     * Поправка на ред на място (PROJECT.md, „Поправки“): имот, начало (заедно
+     * с края на предишния вариант на същия имот, ако е бил долепен), край само
+     * при имот, махнат с анекс, и сумите на реда (correctLineValues).
+     */
+    protected function correctLine(Model $contract, int $id, array $values): void
+    {
+        $line = $contract->lines()->whereKey($id)->lockForUpdate()->first()
+            ?? $this->reject('lines', 'row_not_in_contract');
+
+        if (array_key_exists('property_id', $values)) {
+            $line->property_id = $this->propertyId($contract->company_id, $values['property_id']);
+        }
+
+        $this->correctLineValues($contract, $line, $values);
+
+        if (array_key_exists('valid_from', $values)) {
+            $from = $this->date($values['valid_from'], 'lines', 'period_invalid');
+
+            if (! $from->equalTo($line->valid_from)) {
+                $previous = $contract->lines()
+                    ->where('property_id', $line->getOriginal('property_id'))
+                    ->where('valid_to', $line->valid_from->toDateString())
+                    ->lockForUpdate()->first();
+
+                if ($previous !== null) {
+                    if ($from->lte($previous->valid_from)) {
+                        $this->reject('lines', 'change_too_early');
+                    }
+                    $previous->forceFill(['valid_to' => $from])->save();
+                }
+
+                $line->valid_from = $from;
+            }
+        }
+
+        if (array_key_exists('valid_to', $values)) {
+            if ($line->closed_by_annex_id === null) {
+                $this->reject('lines', 'end_not_editable');
+            }
+            $line->valid_to = $this->date($values['valid_to'], 'lines', 'period_invalid');
+        }
+
+        if ($line->valid_to !== null && $line->valid_to->lte($line->valid_from)) {
+            $this->reject('lines', 'period_invalid');
+        }
+
+        $line->save();
+    }
+
+    /** Сумите на реда при поправка (договорът за управление: сума; за наем: наем и депозит). */
+    protected function correctLineValues(Model $contract, Model $line, array $values): void {}
+
+    /** Следващият № на анекс в договора (най-големият + 1). */
+    public function nextAnnexNumber(Model $contract): int
+    {
+        $class = $this->annexClass();
+
+        return (int) $class::query()->withoutGlobalScopes()
+            ->where('company_id', $contract->company_id)
+            ->where($this->contractKey(), $contract->id)
+            ->max('number') + 1;
+    }
+
     /** Маха имот от договора от дадена дата (от нея нататък не е в договора). */
     public function removeProperty(Model $annex, Property|int $property, $from): Model
     {

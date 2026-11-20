@@ -28,6 +28,7 @@ return [
         'tenants' => 'Наематели',
         'brokers' => 'Отговорни лица',
         'owner-contracts' => 'Договори за управление',
+        'lease-contracts' => 'Договори за наем',
     ],
     'new' => [
         'properties' => 'Нов имот',
@@ -36,6 +37,7 @@ return [
         'tenants' => 'Нов наемател',
         'brokers' => 'Ново отговорно лице',
         'owner-contracts' => 'Нов договор за управление',
+        'lease-contracts' => 'Нов договор за наем',
     ],
     'one' => [
         'properties' => 'Имот',
@@ -44,6 +46,7 @@ return [
         'tenants' => 'Наемател',
         'brokers' => 'Отговорно лице',
         'owner-contracts' => 'Договор за управление',
+        'lease-contracts' => 'Договор за наем',
     ],
 
     // Действия и надписи

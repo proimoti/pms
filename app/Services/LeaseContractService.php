@@ -100,6 +100,196 @@ class LeaseContractService extends ContractService
         });
     }
 
+    /**
+     * Един анекс с няколко промени наведнъж (екранът „Нов анекс“): нов наем
+     * и/или депозит, добавен или махнат имот, удължаване. Промените важат от
+     * обща дата „from“; всеки имот може да има своя. При грешка не остава нищо.
+     *
+     * @param  array{number?: ?int, signed_on: mixed, note?: ?string, from?: mixed, end_on?: mixed,
+     *     lines?: list<array{action: string, property_id: int, from?: mixed, rent?: ?string, deposit?: ?string}>}  $data
+     */
+    public function applyAnnex(LeaseContract $contract, array $data): LeaseContractAnnex
+    {
+        return DB::transaction(function () use ($contract, $data) {
+            $endOn = $data['end_on'] ?? null;
+            $lines = array_values($data['lines'] ?? []);
+            $from = $data['from'] ?? null;
+            $changesTerm = $endOn !== null && $endOn !== '';
+
+            if (! $changesTerm && $lines === []) {
+                $this->reject('changes', 'annex_no_changes');
+            }
+
+            $needsFrom = collect($lines)->contains(fn ($line) => ($line['from'] ?? null) === null || $line['from'] === '');
+            if ($needsFrom && ($from === null || $from === '')) {
+                $this->reject('from', 'annex_from_required');
+            }
+
+            $number = $data['number'] ?? null;
+            $annex = $this->addAnnex($contract, $number === null || $number === '' ? $this->nextAnnexNumber($contract) : (int) $number,
+                $data['signed_on'] ?? null, $data['note'] ?? null);
+
+            foreach ($lines as $line) {
+                $lineFrom = ($line['from'] ?? null) ?: $from;
+                $property = (int) ($line['property_id'] ?? 0);
+
+                match ($line['action'] ?? null) {
+                    'change' => $this->changeTerms($annex, $property, $lineFrom, $line['rent'] ?? null, $line['deposit'] ?? null),
+                    'add' => $this->addProperty($annex, $property, $lineFrom, $line['rent'] ?? null, $line['deposit'] ?? null),
+                    'remove' => $this->removeProperty($annex, $property, $lineFrom),
+                    default => $this->reject('lines', 'line_action_unknown'),
+                };
+            }
+
+            if ($changesTerm) {
+                $this->extendTerm($annex, $endOn);
+            }
+
+            return $annex->refresh();
+        });
+    }
+
+    /** Нов наем и/или депозит от дадена дата; празното остава, каквото е. */
+    public function changeTerms(LeaseContractAnnex $annex, Property|int $property, $from, $rent, $deposit): LeaseContractLine
+    {
+        $change = [];
+        if ($rent !== null && $rent !== '') {
+            $change['rent'] = $this->rent($rent);
+        }
+        if ($deposit !== null && $deposit !== '') {
+            $change['deposit'] = $this->deposit($deposit);
+        }
+
+        if ($change === []) {
+            $this->reject('lines', 'lease_change_empty');
+        }
+
+        return $this->changeLine($annex, $property, $from, $change);
+    }
+
+    /**
+     * Поправка направо на полетата, от които зависят сумите (PROJECT.md,
+     * „Поправки“, „Договор за наем“): наемател, имот, дати, наем, депозит.
+     * Само докато няма начисления; на място, с журнал, със същите проверки.
+     *
+     * @param  array{tenant_id?: ?int,
+     *     lines?: array<int, array{property_id?: int, valid_from?: mixed, valid_to?: mixed, rent?: ?string, deposit?: ?string}>}  $data
+     */
+    public function correct(LeaseContract $contract, array $data): LeaseContract
+    {
+        if ($contract->hasCharges()) {
+            $this->reject('changes', 'correction_after_charges');
+        }
+
+        return DB::transaction(function () use ($contract, $data) {
+            $contract = LeaseContract::query()->withoutGlobalScopes()
+                ->where('company_id', $contract->company_id)->lockForUpdate()->findOrFail($contract->id);
+
+            if (array_key_exists('tenant_id', $data)) {
+                $contract->tenant_id = $this->tenantId($contract->company_id, $data['tenant_id']);
+                $contract->save();
+            }
+
+            foreach ($data['lines'] ?? [] as $id => $values) {
+                $this->correctLine($contract, (int) $id, (array) $values);
+            }
+
+            $start = $contract->startsOn();
+            if ($contract->terminated_on !== null && $start !== null && $contract->terminated_on->lte($start)) {
+                $this->reject('lines', 'terminated_before_start');
+            }
+
+            $this->ensurePropertiesAreFree($contract);
+
+            return $contract->refresh();
+        });
+    }
+
+    protected function correctLineValues($contract, $line, array $values): void
+    {
+        if (array_key_exists('rent', $values)) {
+            $line->rent = $this->rent($values['rent']);
+        }
+
+        if (array_key_exists('deposit', $values)) {
+            $line->deposit = $this->deposit($values['deposit']);
+        }
+    }
+
+    /**
+     * Имотите (номерата), които за част от периода си в договора за наем нямат
+     * договор за управление (PROJECT.md, „Договор за наем“). Сега е само
+     * предупреждение; отказът идва с начисленията. Архивираните не се броят.
+     *
+     * @return list<int>
+     */
+    public function propertiesWithoutManagement(LeaseContract $contract): array
+    {
+        $missing = [];
+
+        $lines = DB::table('lease_contract_lines as l')
+            ->join('properties as p', fn ($join) => $join->on('p.id', '=', 'l.property_id')->on('p.company_id', '=', 'l.company_id'))
+            ->where('l.company_id', $contract->company_id)
+            ->where('l.lease_contract_id', $contract->id)
+            ->get(['l.property_id', 'l.valid_from', 'l.valid_to', 'p.number']);
+
+        foreach ($lines as $line) {
+            [$from, $to] = $this->period($line->valid_from, $line->valid_to, $contract->terminated_on?->toDateString());
+            if ($to !== null && $to <= $from) {
+                continue;
+            }
+
+            $management = DB::table('owner_contract_lines as l')
+                ->join('owner_contracts as c', fn ($join) => $join->on('c.id', '=', 'l.owner_contract_id')->on('c.company_id', '=', 'l.company_id'))
+                ->where('l.company_id', $contract->company_id)
+                ->where('l.property_id', $line->property_id)
+                ->whereNull('c.archived_at')
+                ->orderBy('l.valid_from')
+                ->get(['l.valid_from', 'l.valid_to', 'c.terminated_on'])
+                ->map(fn ($row) => $this->period($row->valid_from, $row->valid_to, $row->terminated_on));
+
+            if (! $this->covers($management->all(), $from, $to)) {
+                $missing[] = (int) $line->number;
+            }
+        }
+
+        $missing = array_values(array_unique($missing));
+        sort($missing);
+
+        return $missing;
+    }
+
+    /** Период „от–до“ (до без него); краят е по-ранният от „до“ и прекратяването. null = без край. */
+    private function period(string $from, ?string $to, ?string $terminated): array
+    {
+        $ends = array_filter([$to, $terminated]);
+
+        return [substr($from, 0, 10), $ends === [] ? null : substr(min($ends), 0, 10)];
+    }
+
+    /** Покриват ли периодите (подредени по начало) целия период [from, to). */
+    private function covers(array $periods, string $from, ?string $to): bool
+    {
+        $cursor = $from;
+
+        foreach ($periods as [$start, $end]) {
+            if ($start > $cursor) {
+                break; // дупка
+            }
+            if ($end === null) {
+                return true;
+            }
+            if ($end > $cursor) {
+                $cursor = $end;
+            }
+            if ($to !== null && $cursor >= $to) {
+                return true;
+            }
+        }
+
+        return $to !== null && $cursor >= $to;
+    }
+
     private function changeLine(LeaseContractAnnex $annex, Property|int $property, $from, array $change): LeaseContractLine
     {
         return DB::transaction(function () use ($annex, $property, $from, $change) {

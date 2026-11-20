@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Contracts\LeaseContractController;
 use App\Http\Controllers\Contracts\OwnerContractController;
 use App\Http\Controllers\Registry\BeneficiaryController;
 use App\Http\Controllers\Registry\BrokerController;
@@ -61,5 +62,19 @@ Route::middleware('auth')->group(function () {
         Route::post('owner-contracts/{contract}/annexes', [OwnerContractController::class, 'storeAnnex'])->middleware($write)->name('owner-contracts.annexes.store');
         Route::get('owner-contracts/{contract}/correct', [OwnerContractController::class, 'editCorrection'])->middleware($write)->name('owner-contracts.correct');
         Route::put('owner-contracts/{contract}/correct', [OwnerContractController::class, 'updateCorrection'])->middleware($write)->name('owner-contracts.correct.update');
+
+        // Договори за наем (PROJECT.md, т. 2 „Договори“, „Договор за наем“, „Поправки“).
+        Route::get('lease-contracts', [LeaseContractController::class, 'index'])->name('lease-contracts.index');
+        Route::get('lease-contracts/create', [LeaseContractController::class, 'create'])->middleware($write)->name('lease-contracts.create');
+        Route::post('lease-contracts', [LeaseContractController::class, 'store'])->middleware($write)->name('lease-contracts.store');
+        Route::get('lease-contracts/{contract}', [LeaseContractController::class, 'show'])->name('lease-contracts.show');
+        Route::get('lease-contracts/{contract}/edit', [LeaseContractController::class, 'edit'])->middleware($write)->name('lease-contracts.edit');
+        Route::put('lease-contracts/{contract}', [LeaseContractController::class, 'update'])->middleware($write)->name('lease-contracts.update');
+        Route::post('lease-contracts/{contract}/archive', [LeaseContractController::class, 'archive'])->middleware($write)->name('lease-contracts.archive');
+        Route::post('lease-contracts/{contract}/restore', [LeaseContractController::class, 'restore'])->middleware($write)->name('lease-contracts.restore');
+        Route::get('lease-contracts/{contract}/annexes/create', [LeaseContractController::class, 'createAnnex'])->middleware($write)->name('lease-contracts.annexes.create');
+        Route::post('lease-contracts/{contract}/annexes', [LeaseContractController::class, 'storeAnnex'])->middleware($write)->name('lease-contracts.annexes.store');
+        Route::get('lease-contracts/{contract}/correct', [LeaseContractController::class, 'editCorrection'])->middleware($write)->name('lease-contracts.correct');
+        Route::put('lease-contracts/{contract}/correct', [LeaseContractController::class, 'updateCorrection'])->middleware($write)->name('lease-contracts.correct.update');
     });
 });

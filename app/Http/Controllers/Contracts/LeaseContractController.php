@@ -1,0 +1,264 @@
+<?php
+
+namespace App\Http\Controllers\Contracts;
+
+use App\Http\Controllers\Registry\RegistryController;
+use App\Models\LeaseContract;
+use App\Models\Property;
+use App\Models\Scopes\RegistryVisibilityScope;
+use App\Models\Tenant;
+use App\Rules\BgDateRule;
+use App\Services\LeaseContractService;
+use App\Support\BgDate;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+/**
+ * Екраните „Договори за наем“ (PROJECT.md, т. 2 „Договори“, „Договор за наем“,
+ * „Поправки“). Правилата са в LeaseContractService и в модела.
+ * „Промени“: информационните полета и прекратяването (винаги). „Нов анекс“:
+ * промени от дадена дата с история. „Поправка“: наемател, имоти, дати, наем
+ * и депозит на място, само докато няма начисления.
+ */
+class LeaseContractController extends RegistryController
+{
+    public function __construct(private readonly LeaseContractService $leases) {}
+
+    protected function section(): string
+    {
+        return 'lease-contracts';
+    }
+
+    protected function applySearch(Builder $query, string $term, string $likeTerm): void
+    {
+        if (ctype_digit($term)) {
+            $query->orWhere('number', (int) $term)
+                ->orWhereHas('lines.property', fn (Builder $q) => $q->where('number', (int) $term));
+        }
+
+        $query->orWhereHas('tenant', fn (Builder $q) => $q->where('name', 'like', $likeTerm));
+    }
+
+    public function index(Request $request): View
+    {
+        $query = $this->listQuery($request, LeaseContract::query()
+            ->with(['tenant', 'lines' => fn ($q) => $q->orderBy('valid_from'), 'lines.property' => $this->anyProperty()])
+            ->orderByDesc('number'));
+
+        return view('contracts.lease.index', ['contracts' => $this->paginate($query)]);
+    }
+
+    public function create(Request $request): View
+    {
+        return view('contracts.lease.create', [
+            'tenants' => Tenant::query()->active()->orderBy('name')->get(['id', 'number', 'name', 'kind']),
+            'properties' => Property::query()->active()->orderBy('number')->get(),
+            'lineCount' => max(1, count((array) $request->old('lines', []))),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $this->isoDates($request->validate([
+            'number' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
+            'tenant_id' => ['nullable', 'integer'],
+            'signed_on' => ['nullable', new BgDateRule],
+            'end_on' => ['nullable', new BgDateRule],
+            'note' => ['nullable', 'string', 'max:5000'],
+            'lines' => ['nullable', 'array'],
+            'lines.*.property_id' => ['nullable', 'integer'],
+            'lines.*.start_on' => ['nullable', new BgDateRule],
+            'lines.*.rent' => ['nullable', 'string', 'max:20'],
+            'lines.*.deposit' => ['nullable', 'string', 'max:20'],
+        ]));
+
+        // Празните редове (без имот) се пропускат.
+        $data['lines'] = array_values(array_filter($data['lines'] ?? [], fn ($line) => ($line['property_id'] ?? null) !== null));
+
+        $contract = $this->leases->create($data);
+
+        return $this->withManagementWarning(
+            redirect("/lease-contracts/{$contract->id}")->with('status', __('registry.saved')), $contract);
+    }
+
+    public function show(LeaseContract $contract): View
+    {
+        $contract->load([
+            'tenant',
+            'annexes' => fn ($q) => $q->orderBy('number'),
+            'lines' => fn ($q) => $q->orderBy('valid_from')->orderBy('id'),
+            'lines.property' => $this->anyProperty(),
+            'extensions' => fn ($q) => $q->orderBy('end_on'),
+        ]);
+
+        return view('contracts.lease.show', [
+            'contract' => $contract,
+            'annexNumbers' => $contract->annexes->pluck('number', 'id'),
+            'withoutManagement' => $this->leases->propertiesWithoutManagement($contract),
+        ]);
+    }
+
+    public function edit(LeaseContract $contract): View
+    {
+        return view('contracts.lease.edit', [
+            'contract' => $contract->load('tenant'),
+            'endLocked' => $contract->extensions()->exists(),
+        ]);
+    }
+
+    /** Информационните полета и прекратяването (PROJECT.md, „Поправки“). */
+    public function update(Request $request, LeaseContract $contract): RedirectResponse
+    {
+        $data = $this->isoDates($request->validate([
+            'number' => ['required', 'integer', 'min:1', 'max:4294967295'],
+            'signed_on' => ['required', new BgDateRule],
+            'end_on' => ['nullable', new BgDateRule],
+            'terminated_on' => ['nullable', new BgDateRule],
+            'note' => ['nullable', 'string', 'max:5000'],
+        ]));
+
+        // Поле, което не е изпратено (например заключеният срок), не се пипа.
+        $values = [];
+        foreach (['number', 'signed_on', 'end_on', 'terminated_on', 'note'] as $field) {
+            if ($request->exists($field)) {
+                $values[$field] = $data[$field] ?? null;
+            }
+        }
+
+        $contract->update($values);
+
+        return redirect("/lease-contracts/{$contract->id}")->with('status', __('registry.saved'));
+    }
+
+    public function archive(LeaseContract $contract): RedirectResponse
+    {
+        return $this->archiveRecord($contract);
+    }
+
+    public function restore(LeaseContract $contract): RedirectResponse
+    {
+        return $this->restoreRecord($contract);
+    }
+
+    /** Нов анекс: няколко промени наведнъж, от обща дата. */
+    public function createAnnex(Request $request, LeaseContract $contract): View
+    {
+        $contract->load(['lines' => fn ($q) => $q->whereNull('valid_to')->orderBy('valid_from'), 'lines.property' => $this->anyProperty()]);
+
+        return view('contracts.lease.annex', [
+            'contract' => $contract,
+            'nextNumber' => $this->leases->nextAnnexNumber($contract),
+            'currentLines' => $contract->lines->filter(fn ($line) => $line->property !== null)->sortBy('property.number'),
+            'properties' => Property::query()->active()->orderBy('number')->get(),
+            'lineCount' => max(1, count((array) $request->old('lines', []))),
+        ]);
+    }
+
+    public function storeAnnex(Request $request, LeaseContract $contract): RedirectResponse
+    {
+        $data = $this->isoDates($request->validate([
+            'number' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
+            'signed_on' => ['nullable', new BgDateRule],
+            'note' => ['nullable', 'string', 'max:5000'],
+            'from' => ['nullable', new BgDateRule],
+            'end_on' => ['nullable', new BgDateRule],
+            'lines' => ['nullable', 'array'],
+            'lines.*.action' => ['nullable', 'string'],
+            'lines.*.property_id' => ['nullable', 'integer'],
+            'lines.*.from' => ['nullable', new BgDateRule],
+            'lines.*.rent' => ['nullable', 'string', 'max:20'],
+            'lines.*.deposit' => ['nullable', 'string', 'max:20'],
+        ]));
+
+        $data['lines'] = array_values(array_filter($data['lines'] ?? [], fn ($line) => ($line['property_id'] ?? null) !== null));
+
+        $annex = $this->leases->applyAnnex($contract, $data);
+
+        return $this->withManagementWarning(redirect("/lease-contracts/{$contract->id}")
+            ->with('status', __('contracts.screens.annex_saved', ['number' => $annex->number])), $contract);
+    }
+
+    /** Поправка на полетата, от които зависят сумите, докато няма начисления. */
+    public function editCorrection(LeaseContract $contract): View
+    {
+        $contract->load([
+            'lines' => fn ($q) => $q->orderBy('valid_from')->orderBy('id'),
+            'lines.property' => $this->anyProperty(),
+            'annexes',
+        ]);
+
+        return view('contracts.lease.correct', [
+            'contract' => $contract,
+            'annexNumbers' => $contract->annexes->pluck('number', 'id'),
+            'tenants' => Tenant::query()->active()->orderBy('name')->get(['id', 'number', 'name', 'kind']),
+            'properties' => Property::query()->active()->orderBy('number')->get(),
+        ]);
+    }
+
+    public function updateCorrection(Request $request, LeaseContract $contract): RedirectResponse
+    {
+        $data = $this->isoDates($request->validate([
+            'tenant_id' => ['nullable', 'integer'],
+            'lines' => ['nullable', 'array'],
+            'lines.*.property_id' => ['nullable', 'integer'],
+            'lines.*.valid_from' => ['nullable', new BgDateRule],
+            'lines.*.valid_to' => ['nullable', new BgDateRule],
+            'lines.*.rent' => ['nullable', 'string', 'max:20'],
+            'lines.*.deposit' => ['nullable', 'string', 'max:20'],
+        ]));
+
+        // Наемателят се пипа само ако е във формата.
+        if (! $request->exists('tenant_id')) {
+            unset($data['tenant_id']);
+        } else {
+            $data['tenant_id'] ??= null;
+        }
+
+        $this->leases->correct($contract, $data);
+
+        return $this->withManagementWarning(
+            redirect("/lease-contracts/{$contract->id}")->with('status', __('registry.saved')), $contract);
+    }
+
+    /** Датите от формата (дд.мм.гггг, вече проверени) във вътрешния вид гггг-мм-дд. */
+    private function isoDates(array $data): array
+    {
+        foreach (['signed_on', 'end_on', 'terminated_on', 'from'] as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = BgDate::toIso($data[$field]);
+            }
+        }
+
+        foreach ($data['lines'] ?? [] as $key => $line) {
+            foreach (['start_on', 'from', 'valid_from', 'valid_to'] as $field) {
+                if (isset($line[$field])) {
+                    $data['lines'][$key][$field] = BgDate::toIso($line[$field]);
+                }
+            }
+        }
+
+        return $data;
+    }
+
+    /** Целият договор се вижда, с номерата на всичките му имоти (PROJECT.md, „Обхват и договори“). */
+    private function anyProperty(): \Closure
+    {
+        return fn ($q) => $q->withoutGlobalScope(RegistryVisibilityScope::class);
+    }
+
+    /** Имот без договор за управление за същия период: записва се, с предупреждение (PROJECT.md, „Договор за наем“). */
+    private function withManagementWarning(RedirectResponse $redirect, LeaseContract $contract): RedirectResponse
+    {
+        $missing = $this->leases->propertiesWithoutManagement($contract->fresh());
+
+        if ($missing !== []) {
+            $redirect->with('warning', __('contracts.screens.no_management_warning', [
+                'properties' => implode(', ', array_map(fn ($number) => __('contracts.screens.property_number', ['number' => $number]), $missing)),
+            ]));
+        }
+
+        return $redirect;
+    }
+}

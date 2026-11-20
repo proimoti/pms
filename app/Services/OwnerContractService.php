@@ -241,15 +241,6 @@ class OwnerContractService extends ContractService
         });
     }
 
-    /** Следващият № на анекс в договора (най-големият + 1). */
-    public function nextAnnexNumber(OwnerContract $contract): int
-    {
-        return (int) OwnerContractAnnex::query()->withoutGlobalScopes()
-            ->where('company_id', $contract->company_id)
-            ->where('owner_contract_id', $contract->id)
-            ->max('number') + 1;
-    }
-
     /**
      * Поправка направо на полетата, от които зависят сумите (PROJECT.md,
      * „Поправки“), само докато няма начисления. Сменя записите на място (с
@@ -327,55 +318,12 @@ class OwnerContractService extends ContractService
         }
     }
 
-    /**
-     * Ред: имот, сума, начало (заедно с края на предишния вариант на същия
-     * имот, ако е бил долепен) и край, само ако имотът е махнат с анекс.
-     */
-    private function correctLine(OwnerContract $contract, int $id, array $values): void
+    /** Сумата на реда при поправка (само при фиксиран тип). */
+    protected function correctLineValues(Model $contract, Model $line, array $values): void
     {
-        $line = $contract->lines()->whereKey($id)->lockForUpdate()->first()
-            ?? $this->reject('lines', 'row_not_in_contract');
-
-        if (array_key_exists('property_id', $values)) {
-            $line->property_id = $this->propertyId($contract->company_id, $values['property_id']);
-        }
-
         if (array_key_exists('fixed_amount', $values)) {
             $line->fixed_amount = $this->amount($contract->calculation, $values['fixed_amount']);
         }
-
-        if (array_key_exists('valid_from', $values)) {
-            $from = $this->date($values['valid_from'], 'lines', 'period_invalid');
-
-            if (! $from->equalTo($line->valid_from)) {
-                $previous = $contract->lines()
-                    ->where('property_id', $line->getOriginal('property_id'))
-                    ->where('valid_to', $line->valid_from->toDateString())
-                    ->lockForUpdate()->first();
-
-                if ($previous !== null) {
-                    if ($from->lte($previous->valid_from)) {
-                        $this->reject('lines', 'change_too_early');
-                    }
-                    $previous->forceFill(['valid_to' => $from])->save();
-                }
-
-                $line->valid_from = $from;
-            }
-        }
-
-        if (array_key_exists('valid_to', $values)) {
-            if ($line->closed_by_annex_id === null) {
-                $this->reject('lines', 'end_not_editable');
-            }
-            $line->valid_to = $this->date($values['valid_to'], 'lines', 'period_invalid');
-        }
-
-        if ($line->valid_to !== null && $line->valid_to->lte($line->valid_from)) {
-            $this->reject('lines', 'period_invalid');
-        }
-
-        $line->save();
     }
 
     /** Процентът и бенефициентът започват с договора (с най-ранния имот). */
