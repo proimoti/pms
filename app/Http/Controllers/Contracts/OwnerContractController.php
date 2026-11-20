@@ -10,7 +10,9 @@ use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\Property;
 use App\Models\Scopes\RegistryVisibilityScope;
+use App\Rules\BgDateRule;
 use App\Services\OwnerContractService;
+use App\Support\BgDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,7 +63,7 @@ class OwnerContractController extends RegistryController
             'types' => OwnerContractType::cases(),
             'methods' => PaymentMethod::cases(),
             'owners' => Owner::query()->active()->orderBy('name')->get(['id', 'number', 'name', 'kind']),
-            'beneficiaries' => Beneficiary::query()->active()->orderBy('name')->get(['id', 'name']),
+            'beneficiaries' => Beneficiary::query()->active()->orderBy('name')->get(['id', 'name', 'owner_id']),
             'properties' => Property::query()->active()->orderBy('number')->get(),
             'lineCount' => max(self::EMPTY_LINES, count((array) $request->old('lines', []))),
         ]);
@@ -73,17 +75,18 @@ class OwnerContractController extends RegistryController
             'type' => ['nullable', 'string'],
             'number' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
             'owner_id' => ['nullable', 'integer'],
-            'signed_on' => ['nullable', 'date'],
-            'end_on' => ['nullable', 'date'],
+            'signed_on' => ['nullable', new BgDateRule],
+            'end_on' => ['nullable', new BgDateRule],
             'note' => ['nullable', 'string', 'max:5000'],
             'commission_percent' => ['nullable', 'string', 'max:10'],
             'payment_method' => ['nullable', 'string'],
             'beneficiary_id' => ['nullable', 'integer'],
             'lines' => ['nullable', 'array'],
             'lines.*.property_id' => ['nullable', 'integer'],
-            'lines.*.start_on' => ['nullable', 'date'],
+            'lines.*.start_on' => ['nullable', new BgDateRule],
             'lines.*.fixed_amount' => ['nullable', 'string', 'max:20'],
         ]);
+        $data = $this->isoDates($data);
 
         // Празните редове (без имот) се пропускат.
         $data['lines'] = array_values(array_filter($data['lines'] ?? [], fn ($line) => ($line['property_id'] ?? null) !== null));
@@ -127,11 +130,12 @@ class OwnerContractController extends RegistryController
     {
         $data = $request->validate([
             'number' => ['required', 'integer', 'min:1', 'max:4294967295'],
-            'signed_on' => ['required', 'date'],
-            'end_on' => ['nullable', 'date'],
-            'terminated_on' => ['nullable', 'date'],
+            'signed_on' => ['required', new BgDateRule],
+            'end_on' => ['nullable', new BgDateRule],
+            'terminated_on' => ['nullable', new BgDateRule],
             'note' => ['nullable', 'string', 'max:5000'],
         ]);
+        $data = $this->isoDates($data);
 
         // Поле, което не е изпратено (например заключеният срок), не се пипа.
         $values = [];
@@ -166,7 +170,7 @@ class OwnerContractController extends RegistryController
             'nextNumber' => $this->contracts->nextAnnexNumber($contract),
             'currentProperties' => $contract->lines->pluck('property')->filter()->sortBy('number'),
             'properties' => Property::query()->active()->orderBy('number')->get(),
-            'beneficiaries' => Beneficiary::query()->active()->orderBy('name')->get(['id', 'name']),
+            'beneficiaries' => Beneficiary::query()->active()->orderBy('name')->get(['id', 'name', 'owner_id']),
             'methods' => PaymentMethod::cases(),
             'lineCount' => max(1, count((array) $request->old('lines', []))),
         ]);
@@ -176,20 +180,21 @@ class OwnerContractController extends RegistryController
     {
         $data = $request->validate([
             'number' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
-            'signed_on' => ['nullable', 'date'],
+            'signed_on' => ['nullable', new BgDateRule],
             'note' => ['nullable', 'string', 'max:5000'],
-            'from' => ['nullable', 'date'],
+            'from' => ['nullable', new BgDateRule],
             'commission_percent' => ['nullable', 'string', 'max:10'],
             'change_payee' => ['nullable', 'boolean'],
             'payee.beneficiary_id' => ['nullable', 'integer'],
             'payee.payment_method' => ['nullable', 'string'],
-            'end_on' => ['nullable', 'date'],
+            'end_on' => ['nullable', new BgDateRule],
             'lines' => ['nullable', 'array'],
             'lines.*.action' => ['nullable', 'string'],
             'lines.*.property_id' => ['nullable', 'integer'],
-            'lines.*.from' => ['nullable', 'date'],
+            'lines.*.from' => ['nullable', new BgDateRule],
             'lines.*.fixed_amount' => ['nullable', 'string', 'max:20'],
         ]);
+        $data = $this->isoDates($data);
 
         // Бенефициентът се сменя само ако е отметнато; празните редове се пропускат.
         $data['payee'] = $request->boolean('change_payee') ? ($data['payee'] ?? []) : null;
@@ -231,8 +236,8 @@ class OwnerContractController extends RegistryController
             'owner_id' => ['nullable', 'integer'],
             'lines' => ['nullable', 'array'],
             'lines.*.property_id' => ['nullable', 'integer'],
-            'lines.*.valid_from' => ['nullable', 'date'],
-            'lines.*.valid_to' => ['nullable', 'date'],
+            'lines.*.valid_from' => ['nullable', new BgDateRule],
+            'lines.*.valid_to' => ['nullable', new BgDateRule],
             'lines.*.fixed_amount' => ['nullable', 'string', 'max:20'],
             'commissions' => ['nullable', 'array'],
             'commissions.*' => ['nullable', 'string', 'max:10'],
@@ -240,6 +245,7 @@ class OwnerContractController extends RegistryController
             'payees.*.beneficiary_id' => ['nullable', 'integer'],
             'payees.*.payment_method' => ['nullable', 'string'],
         ]);
+        $data = $this->isoDates($data);
 
         // Собственикът се пипа само ако е във формата.
         if (! $request->exists('owner_id')) {
@@ -254,6 +260,26 @@ class OwnerContractController extends RegistryController
             redirect("/owner-contracts/{$contract->id}")->with('status', __('registry.saved')),
             $contract,
         );
+    }
+
+    /** Датите от формата (дд.мм.гггг, вече проверени) във вътрешния вид гггг-мм-дд. */
+    private function isoDates(array $data): array
+    {
+        foreach (['signed_on', 'end_on', 'terminated_on', 'from'] as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = BgDate::toIso($data[$field]);
+            }
+        }
+
+        foreach ($data['lines'] ?? [] as $key => $line) {
+            foreach (['start_on', 'from', 'valid_from', 'valid_to'] as $field) {
+                if (isset($line[$field])) {
+                    $data['lines'][$key][$field] = BgDate::toIso($line[$field]);
+                }
+            }
+        }
+
+        return $data;
     }
 
     /**

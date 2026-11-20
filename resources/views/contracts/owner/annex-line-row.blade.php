@@ -17,7 +17,7 @@
             @endforeach
         </select>
     </td>
-    <td><input type="date" name="lines[{{ $index }}][from]" value="{{ old("lines.$index.from") }}" aria-label="{{ __('contracts.screens.fields.from') }}"></td>
+    <td><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="lines[{{ $index }}][from]" value="{{ \App\Support\BgDate::toInput(old("lines.$index.from")) }}" aria-label="{{ __('contracts.screens.fields.from') }}"></td>
     @if ($fixed)
         <td><input type="text" inputmode="decimal" name="lines[{{ $index }}][fixed_amount]" value="{{ old("lines.$index.fixed_amount") }}" aria-label="{{ __('contracts.screens.fields.fixed_amount') }}"></td>
     @endif

@@ -23,11 +23,11 @@
             </div>
             <div>
                 <label for="signed_on">{{ __('contracts.screens.fields.annex_signed_on') }} *</label>
-                <input id="signed_on" type="date" name="signed_on" value="{{ old('signed_on') }}" required>
+                <input id="signed_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="signed_on" value="{{ \App\Support\BgDate::toInput(old('signed_on')) }}" required>
             </div>
             <div>
                 <label for="from">{{ __('contracts.screens.fields.annex_from') }}</label>
-                <input id="from" type="date" name="from" value="{{ old('from') }}">
+                <input id="from" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="from" value="{{ \App\Support\BgDate::toInput(old('from')) }}">
                 <div class="muted">{{ __('contracts.screens.hints.annex_from') }}</div>
             </div>
         </div>
@@ -48,12 +48,11 @@
             <div class="grid">
                 <div>
                     <label for="payee_beneficiary">{{ __('contracts.screens.fields.beneficiary') }}</label>
-                    <select id="payee_beneficiary" name="payee[beneficiary_id]">
-                        <option value="">{{ __('registry.owner_himself') }}</option>
-                        @foreach ($beneficiaries as $beneficiary)
-                            <option value="{{ $beneficiary->id }}" @selected((string) old('payee.beneficiary_id') === (string) $beneficiary->id)>{{ $beneficiary->name }}</option>
-                        @endforeach
-                    </select>
+                    @include('contracts.owner.beneficiary-select', [
+                        'id' => 'payee_beneficiary', 'name' => 'payee[beneficiary_id]',
+                        'selected' => old('payee.beneficiary_id', ''), 'ownerId' => $contract->owner_id,
+                    ])
+                    @include('contracts.owner.new-beneficiary', ['target' => 'payee_beneficiary'])
                 </div>
                 <div>
                     <label for="payee_method">{{ __('contracts.screens.fields.payment_method') }}</label>
@@ -70,7 +69,7 @@
             <h2>{{ __('contracts.screens.sections.extensions') }}</h2>
             <label for="end_on">{{ __('contracts.screens.fields.new_end_on') }}
                 <span class="muted">({{ __('contracts.screens.now') }} {{ Format::date($contract->end_on) }})</span></label>
-            <input id="end_on" type="date" name="end_on" value="{{ old('end_on') }}" style="max-width: 200px;">
+            <input id="end_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="end_on" value="{{ \App\Support\BgDate::toInput(old('end_on')) }}" style="max-width: 200px;">
             <div class="muted">{{ __('contracts.screens.hints.empty_no_change') }}</div>
         @endif
 

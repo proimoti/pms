@@ -38,12 +38,12 @@
             </div>
             <div>
                 <label for="signed_on">{{ __('contracts.screens.fields.signed_on') }} *</label>
-                <input id="signed_on" type="date" name="signed_on" value="{{ old('signed_on') }}" required>
+                <input id="signed_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="signed_on" value="{{ \App\Support\BgDate::toInput(old('signed_on')) }}" required>
                 <div class="muted">{{ __('contracts.screens.hints.signed_on') }}</div>
             </div>
             <div>
                 <label for="end_on">{{ __('contracts.screens.fields.end_on') }}</label>
-                <input id="end_on" type="date" name="end_on" value="{{ old('end_on') }}">
+                <input id="end_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="end_on" value="{{ \App\Support\BgDate::toInput(old('end_on')) }}">
                 <div class="muted">{{ __('contracts.screens.hints.end_on') }}</div>
             </div>
         </div>
@@ -65,13 +65,11 @@
             </div>
             <div data-calc="percent fixed">
                 <label for="beneficiary_id">{{ __('contracts.screens.fields.beneficiary') }}</label>
-                <select id="beneficiary_id" name="beneficiary_id">
-                    <option value="">{{ __('registry.owner_himself') }}</option>
-                    @foreach ($beneficiaries as $beneficiary)
-                        <option value="{{ $beneficiary->id }}" @selected((string) old('beneficiary_id') === (string) $beneficiary->id)>{{ $beneficiary->name }}</option>
-                    @endforeach
-                </select>
-                <div class="muted">{{ __('contracts.screens.hints.beneficiary') }}</div>
+                @include('contracts.owner.beneficiary-select', [
+                    'id' => 'beneficiary_id', 'name' => 'beneficiary_id',
+                    'selected' => old('beneficiary_id', ''), 'ownerId' => null,
+                ])
+                @include('contracts.owner.new-beneficiary', ['target' => 'beneficiary_id'])
             </div>
         </div>
 
@@ -135,6 +133,23 @@
 
             type.addEventListener('change', update);
             update();
+
+            // Записът, свързан с избрания собственик, е „Самият собственик“: не се показва втори път.
+            const owner = document.getElementById('owner_id');
+            const beneficiary = document.getElementById('beneficiary_id');
+
+            function hideOwnerHimself() {
+                beneficiary.querySelectorAll('option[data-owner]').forEach(function (option) {
+                    const same = option.dataset.owner === owner.value;
+                    option.hidden = same;
+                    if (same && option.selected) {
+                        beneficiary.value = '';
+                    }
+                });
+            }
+
+            owner.addEventListener('change', hideOwnerHimself);
+            hideOwnerHimself();
         })();
     </script>
 @endsection

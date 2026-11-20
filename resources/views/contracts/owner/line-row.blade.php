@@ -10,6 +10,6 @@
             @endforeach
         </select>
     </td>
-    <td><input type="date" name="lines[{{ $index }}][start_on]" value="{{ old("lines.$index.start_on") }}" aria-label="{{ __('contracts.screens.fields.start_on') }}"></td>
+    <td><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="lines[{{ $index }}][start_on]" value="{{ \App\Support\BgDate::toInput(old("lines.$index.start_on")) }}" aria-label="{{ __('contracts.screens.fields.start_on') }}"></td>
     <td data-calc="fixed"><input type="text" inputmode="decimal" name="lines[{{ $index }}][fixed_amount]" value="{{ old("lines.$index.fixed_amount") }}" aria-label="{{ __('contracts.screens.fields.fixed_amount') }}"></td>
 </tr>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Registry;
 use App\Http\Requests\Registry\BeneficiaryRequest;
 use App\Models\Beneficiary;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -37,9 +38,15 @@ class BeneficiaryController extends RegistryController
         return view('registry.beneficiaries.form', ['beneficiary' => new Beneficiary]);
     }
 
-    public function store(BeneficiaryRequest $request): RedirectResponse
+    /** От екрана „Бенефициенти“ или направо от формата на договор („+ Нов бенефициент“). */
+    public function store(BeneficiaryRequest $request): RedirectResponse|JsonResponse
     {
         $beneficiary = Beneficiary::query()->create($this->values($request));
+
+        // От формата на договора: само номерът и името (без IBAN), за да се добави в списъка.
+        if ($request->expectsJson()) {
+            return response()->json(['id' => $beneficiary->id, 'name' => $beneficiary->name], 201);
+        }
 
         return redirect("/beneficiaries/{$beneficiary->id}")->with('status', __('registry.saved'));
     }

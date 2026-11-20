@@ -127,7 +127,7 @@ class OwnerContractAnnexScreensTest extends ScreenTestCase
         $this->actingAs($this->staff());
 
         $this->get("/owner-contracts/{$contract->id}/correct")->assertOk()
-            ->assertSee('2026-01-10')->assertSee('Мария Измислена')->assertSee('докато няма начисления');
+            ->assertSee('10.01.2026')->assertSee('Мария Измислена')->assertSee('докато няма начисления');
 
         $this->put("/owner-contracts/{$contract->id}/correct", [
             'owner_id' => $newOwner->id,

@@ -60,10 +60,10 @@
                                 @endforeach
                             </select>
                         </td>
-                        <td><input type="date" name="lines[{{ $line->id }}][valid_from]" value="{{ old("lines.{$line->id}.valid_from", $line->valid_from->toDateString()) }}" aria-label="{{ __('contracts.screens.fields.from') }}"></td>
+                        <td><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="lines[{{ $line->id }}][valid_from]" value="{{ \App\Support\BgDate::toInput(old("lines.{$line->id}.valid_from", $line->valid_from->toDateString())) }}" aria-label="{{ __('contracts.screens.fields.from') }}"></td>
                         <td>
                             @if ($line->closed_by_annex_id)
-                                <input type="date" name="lines[{{ $line->id }}][valid_to]" value="{{ old("lines.{$line->id}.valid_to", $line->valid_to?->toDateString()) }}" aria-label="{{ __('contracts.screens.fields.to') }}">
+                                <input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="lines[{{ $line->id }}][valid_to]" value="{{ \App\Support\BgDate::toInput(old("lines.{$line->id}.valid_to", $line->valid_to?->toDateString())) }}" aria-label="{{ __('contracts.screens.fields.to') }}">
                             @else
                                 {{ Format::date($line->valid_to) }}
                             @endif
