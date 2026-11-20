@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function () {
             Route::post("{$section}/{{$parameter}}/restore", [$controller, 'restore'])->middleware($write)->name("{$section}.restore");
         }
 
-        // Договори за управление (PROJECT.md, т. 2 „Договори“). Анексите идват в следващата стъпка.
+        // Договори за управление (PROJECT.md, т. 2 „Договори“, „Поправки“).
         $write = EnsureRegistryAccess::class.':write';
         Route::get('owner-contracts', [OwnerContractController::class, 'index'])->name('owner-contracts.index');
         Route::get('owner-contracts/create', [OwnerContractController::class, 'create'])->middleware($write)->name('owner-contracts.create');
@@ -57,5 +57,9 @@ Route::middleware('auth')->group(function () {
         Route::put('owner-contracts/{contract}', [OwnerContractController::class, 'update'])->middleware($write)->name('owner-contracts.update');
         Route::post('owner-contracts/{contract}/archive', [OwnerContractController::class, 'archive'])->middleware($write)->name('owner-contracts.archive');
         Route::post('owner-contracts/{contract}/restore', [OwnerContractController::class, 'restore'])->middleware($write)->name('owner-contracts.restore');
+        Route::get('owner-contracts/{contract}/annexes/create', [OwnerContractController::class, 'createAnnex'])->middleware($write)->name('owner-contracts.annexes.create');
+        Route::post('owner-contracts/{contract}/annexes', [OwnerContractController::class, 'storeAnnex'])->middleware($write)->name('owner-contracts.annexes.store');
+        Route::get('owner-contracts/{contract}/correct', [OwnerContractController::class, 'editCorrection'])->middleware($write)->name('owner-contracts.correct');
+        Route::put('owner-contracts/{contract}/correct', [OwnerContractController::class, 'updateCorrection'])->middleware($write)->name('owner-contracts.correct.update');
     });
 });

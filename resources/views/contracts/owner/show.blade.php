@@ -174,6 +174,12 @@
         </div>
     @endif
 
+    @if (auth()->user()->access_level === \App\Enums\AccessLevel::Write && ! $contract->isArchived())
+        <div class="actions" style="margin-top: 18px;">
+            <a class="button" style="margin-top: 0;" href="/owner-contracts/{{ $contract->id }}/annexes/create">{{ __('contracts.screens.new_annex') }}</a>
+            <a class="button secondary" style="margin-top: 0;" href="/owner-contracts/{{ $contract->id }}/correct">{{ __('contracts.screens.correction') }}</a>
+        </div>
+    @endif
     <p class="muted">{{ __('contracts.screens.hints.amount_fields') }}</p>
 
     @include('registry.partials.record-actions', ['section' => 'owner-contracts', 'record' => $contract])

@@ -176,6 +176,230 @@ class OwnerContractService extends ContractService
         });
     }
 
+    /**
+     * Един анекс с няколко промени наведнъж (екранът „Нов анекс“). Промените
+     * важат от обща дата „from“; всеки имот може да има своя. При грешка в
+     * която и да е промяна не се записва нищо, и самият анекс.
+     *
+     * @param  array{number?: ?int, signed_on: mixed, note?: ?string, from?: mixed,
+     *     commission_percent?: ?string, payee?: ?array{beneficiary_id?: ?int, payment_method?: ?string},
+     *     end_on?: mixed, lines?: list<array{action: string, property_id: int, from?: mixed, fixed_amount?: ?string}>}  $data
+     */
+    public function applyAnnex(OwnerContract $contract, array $data): OwnerContractAnnex
+    {
+        return DB::transaction(function () use ($contract, $data) {
+            $percent = $data['commission_percent'] ?? null;
+            $payee = $data['payee'] ?? null;
+            $endOn = $data['end_on'] ?? null;
+            $lines = array_values($data['lines'] ?? []);
+            $from = $data['from'] ?? null;
+
+            $changesPercent = $percent !== null && $percent !== '';
+            $changesTerm = $endOn !== null && $endOn !== '';
+
+            if (! $changesPercent && $payee === null && ! $changesTerm && $lines === []) {
+                $this->reject('changes', 'annex_no_changes');
+            }
+
+            $needsFrom = $changesPercent || $payee !== null
+                || collect($lines)->contains(fn ($line) => ($line['from'] ?? '') === '' || ($line['from'] ?? null) === null);
+            if ($needsFrom && ($from === null || $from === '')) {
+                $this->reject('from', 'annex_from_required');
+            }
+
+            $number = $data['number'] ?? null;
+            $annex = $this->addAnnex($contract, $number === null || $number === '' ? $this->nextAnnexNumber($contract) : (int) $number,
+                $data['signed_on'] ?? null, $data['note'] ?? null);
+
+            if ($changesPercent) {
+                $this->changeCommission($annex, $from, $percent);
+            }
+
+            if ($payee !== null) {
+                $beneficiaryId = $payee['beneficiary_id'] ?? null;
+                $this->changePayee($annex, $from, $beneficiaryId === null || $beneficiaryId === '' ? null : (int) $beneficiaryId,
+                    $payee['payment_method'] ?? null);
+            }
+
+            foreach ($lines as $line) {
+                $lineFrom = ($line['from'] ?? null) ?: $from;
+                $property = (int) ($line['property_id'] ?? 0);
+
+                match ($line['action'] ?? null) {
+                    'amount' => $this->changeFixedAmount($annex, $property, $lineFrom, $line['fixed_amount'] ?? null),
+                    'add' => $this->addProperty($annex, $property, $lineFrom, $line['fixed_amount'] ?? null),
+                    'remove' => $this->removeProperty($annex, $property, $lineFrom),
+                    default => $this->reject('lines', 'line_action_unknown'),
+                };
+            }
+
+            if ($changesTerm) {
+                $this->extendTerm($annex, $endOn);
+            }
+
+            return $annex->refresh();
+        });
+    }
+
+    /** Следващият № на анекс в договора (най-големият + 1). */
+    public function nextAnnexNumber(OwnerContract $contract): int
+    {
+        return (int) OwnerContractAnnex::query()->withoutGlobalScopes()
+            ->where('company_id', $contract->company_id)
+            ->where('owner_contract_id', $contract->id)
+            ->max('number') + 1;
+    }
+
+    /**
+     * Поправка направо на полетата, от които зависят сумите (PROJECT.md,
+     * „Поправки“), само докато няма начисления. Сменя записите на място (с
+     * журнал), без нов вариант. Ключовете са номерата (id) на редовете.
+     *
+     * @param  array{owner_id?: ?int,
+     *     lines?: array<int, array{property_id?: int, valid_from?: mixed, valid_to?: mixed, fixed_amount?: ?string}>,
+     *     commissions?: array<int, string>,
+     *     payees?: array<int, array{beneficiary_id?: ?int, payment_method?: ?string}>}  $data
+     */
+    public function correct(OwnerContract $contract, array $data): OwnerContract
+    {
+        if ($contract->hasCharges()) {
+            $this->reject('changes', 'correction_after_charges');
+        }
+
+        return DB::transaction(function () use ($contract, $data) {
+            $contract = OwnerContract::query()->withoutGlobalScopes()
+                ->where('company_id', $contract->company_id)->lockForUpdate()->findOrFail($contract->id);
+
+            if (array_key_exists('owner_id', $data)) {
+                $this->correctOwner($contract, $data['owner_id']);
+            }
+
+            foreach ($data['lines'] ?? [] as $id => $values) {
+                $this->correctLine($contract, (int) $id, (array) $values);
+            }
+
+            foreach ($data['commissions'] ?? [] as $id => $percent) {
+                $version = $contract->commissions()->whereKey($id)->lockForUpdate()->first()
+                    ?? $this->reject('commissions', 'row_not_in_contract');
+                $version->forceFill(['percent' => $this->percent($contract->calculation, $percent)])->save();
+            }
+
+            foreach ($data['payees'] ?? [] as $id => $values) {
+                $version = $contract->payees()->whereKey($id)->lockForUpdate()->first()
+                    ?? $this->reject('payees', 'row_not_in_contract');
+                [$beneficiaryId, $method] = $this->payee($contract->company_id, $contract->calculation,
+                    $values['beneficiary_id'] ?? null, $values['payment_method'] ?? null);
+                $beneficiaryId ??= $this->ownerBeneficiary(
+                    Owner::query()->withoutGlobalScopes()->where('company_id', $contract->company_id)->findOrFail($contract->owner_id)
+                )->id;
+                $version->forceFill(['beneficiary_id' => $beneficiaryId, 'payment_method' => $method])->save();
+            }
+
+            $this->alignContractStart($contract);
+            $this->ensurePropertiesAreFree($contract);
+
+            return $contract->refresh();
+        });
+    }
+
+    /** Смяна на собственика: бенефициентът „самият собственик“ минава към новия. */
+    private function correctOwner(OwnerContract $contract, $ownerId): void
+    {
+        $owner = $this->owner($contract->company_id, $contract->type, $ownerId);
+        $oldOwnerId = $contract->owner_id;
+
+        $contract->owner_id = $owner?->id;
+        $contract->save();
+
+        if ($oldOwnerId === null || $owner === null || $oldOwnerId === $owner->id) {
+            return;
+        }
+
+        $old = Beneficiary::query()->withoutGlobalScopes()
+            ->where('company_id', $contract->company_id)->where('owner_id', $oldOwnerId)->first();
+        if ($old === null) {
+            return;
+        }
+
+        $new = $this->ownerBeneficiary($owner);
+        foreach ($contract->payees()->where('beneficiary_id', $old->id)->lockForUpdate()->get() as $version) {
+            $version->forceFill(['beneficiary_id' => $new->id])->save();
+        }
+    }
+
+    /**
+     * Ред: имот, сума, начало (заедно с края на предишния вариант на същия
+     * имот, ако е бил долепен) и край, само ако имотът е махнат с анекс.
+     */
+    private function correctLine(OwnerContract $contract, int $id, array $values): void
+    {
+        $line = $contract->lines()->whereKey($id)->lockForUpdate()->first()
+            ?? $this->reject('lines', 'row_not_in_contract');
+
+        if (array_key_exists('property_id', $values)) {
+            $line->property_id = $this->propertyId($contract->company_id, $values['property_id']);
+        }
+
+        if (array_key_exists('fixed_amount', $values)) {
+            $line->fixed_amount = $this->amount($contract->calculation, $values['fixed_amount']);
+        }
+
+        if (array_key_exists('valid_from', $values)) {
+            $from = $this->date($values['valid_from'], 'lines', 'period_invalid');
+
+            if (! $from->equalTo($line->valid_from)) {
+                $previous = $contract->lines()
+                    ->where('property_id', $line->getOriginal('property_id'))
+                    ->where('valid_to', $line->valid_from->toDateString())
+                    ->lockForUpdate()->first();
+
+                if ($previous !== null) {
+                    if ($from->lte($previous->valid_from)) {
+                        $this->reject('lines', 'change_too_early');
+                    }
+                    $previous->forceFill(['valid_to' => $from])->save();
+                }
+
+                $line->valid_from = $from;
+            }
+        }
+
+        if (array_key_exists('valid_to', $values)) {
+            if ($line->closed_by_annex_id === null) {
+                $this->reject('lines', 'end_not_editable');
+            }
+            $line->valid_to = $this->date($values['valid_to'], 'lines', 'period_invalid');
+        }
+
+        if ($line->valid_to !== null && $line->valid_to->lte($line->valid_from)) {
+            $this->reject('lines', 'period_invalid');
+        }
+
+        $line->save();
+    }
+
+    /** Процентът и бенефициентът започват с договора (с най-ранния имот). */
+    private function alignContractStart(OwnerContract $contract): void
+    {
+        $start = $contract->startsOn();
+
+        foreach ([$contract->commissions(), $contract->payees()] as $versions) {
+            $first = $versions->orderBy('valid_from')->lockForUpdate()->first();
+            if ($first === null || $first->valid_from->equalTo($start)) {
+                continue;
+            }
+
+            if ($first->valid_to !== null && $first->valid_to->lte($start)) {
+                $this->reject('lines', 'start_after_first_version');
+            }
+            $first->forceFill(['valid_from' => $start])->save();
+        }
+
+        if ($contract->terminated_on !== null && $contract->terminated_on->lte($start)) {
+            $this->reject('lines', 'terminated_before_start');
+        }
+    }
+
     // Проверки на входа
 
     private function owner(int $companyId, OwnerContractType $type, $ownerId): ?Owner

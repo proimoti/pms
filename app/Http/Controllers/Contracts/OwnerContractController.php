@@ -19,9 +19,10 @@ use Illuminate\View\View;
 /**
  * Екраните „Договори за управление“ (PROJECT.md, т. 2 „Договори“, „Поправки“).
  *
- * Правилата са в OwnerContractService и в модела; тук е само формата. Тук се
- * поправят информационните полета и се прекратява договорът. Полетата, от
- * които зависят сумите, се сменят с анекс (следваща стъпка).
+ * Правилата са в OwnerContractService и в модела; тук е само формата.
+ * „Промени“: информационните полета и прекратяването (винаги). „Нов анекс“:
+ * промени от дадена дата с история. „Поправка“: полетата, от които зависят
+ * сумите, на място, само докато няма начисления.
  */
 class OwnerContractController extends RegistryController
 {
@@ -153,6 +154,106 @@ class OwnerContractController extends RegistryController
     public function restore(OwnerContract $contract): RedirectResponse
     {
         return $this->restoreRecord($contract);
+    }
+
+    /** Нов анекс: няколко промени наведнъж, от обща дата. */
+    public function createAnnex(Request $request, OwnerContract $contract): View
+    {
+        $contract->load(['lines' => fn ($q) => $q->whereNull('valid_to')->orderBy('valid_from'), 'lines.property' => $this->anyProperty()]);
+
+        return view('contracts.owner.annex', [
+            'contract' => $contract,
+            'nextNumber' => $this->contracts->nextAnnexNumber($contract),
+            'currentProperties' => $contract->lines->pluck('property')->filter()->sortBy('number'),
+            'properties' => Property::query()->active()->orderBy('number')->get(),
+            'beneficiaries' => Beneficiary::query()->active()->orderBy('name')->get(['id', 'name']),
+            'methods' => PaymentMethod::cases(),
+            'lineCount' => max(1, count((array) $request->old('lines', []))),
+        ]);
+    }
+
+    public function storeAnnex(Request $request, OwnerContract $contract): RedirectResponse
+    {
+        $data = $request->validate([
+            'number' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
+            'signed_on' => ['nullable', 'date'],
+            'note' => ['nullable', 'string', 'max:5000'],
+            'from' => ['nullable', 'date'],
+            'commission_percent' => ['nullable', 'string', 'max:10'],
+            'change_payee' => ['nullable', 'boolean'],
+            'payee.beneficiary_id' => ['nullable', 'integer'],
+            'payee.payment_method' => ['nullable', 'string'],
+            'end_on' => ['nullable', 'date'],
+            'lines' => ['nullable', 'array'],
+            'lines.*.action' => ['nullable', 'string'],
+            'lines.*.property_id' => ['nullable', 'integer'],
+            'lines.*.from' => ['nullable', 'date'],
+            'lines.*.fixed_amount' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        // Бенефициентът се сменя само ако е отметнато; празните редове се пропускат.
+        $data['payee'] = $request->boolean('change_payee') ? ($data['payee'] ?? []) : null;
+        $data['lines'] = array_values(array_filter($data['lines'] ?? [], fn ($line) => ($line['property_id'] ?? null) !== null));
+
+        $annex = $this->contracts->applyAnnex($contract, $data);
+
+        $redirect = redirect("/owner-contracts/{$contract->id}")
+            ->with('status', __('contracts.screens.annex_saved', ['number' => $annex->number]));
+
+        return $data['payee'] !== null ? $this->withIbanWarning($redirect, $contract) : $redirect;
+    }
+
+    /** Поправка на полетата, от които зависят сумите, докато няма начисления. */
+    public function editCorrection(OwnerContract $contract): View
+    {
+        $contract->load([
+            'lines' => fn ($q) => $q->orderBy('valid_from')->orderBy('id'),
+            'lines.property' => $this->anyProperty(),
+            'commissions' => fn ($q) => $q->orderBy('valid_from'),
+            'payees' => fn ($q) => $q->orderBy('valid_from'),
+            'payees.beneficiary',
+            'annexes',
+        ]);
+
+        return view('contracts.owner.correct', [
+            'contract' => $contract,
+            'annexNumbers' => $contract->annexes->pluck('number', 'id'),
+            'owners' => Owner::query()->active()->orderBy('name')->get(['id', 'number', 'name', 'kind']),
+            'properties' => Property::query()->active()->orderBy('number')->get(),
+            'beneficiaries' => Beneficiary::query()->active()->orderBy('name')->get(['id', 'name', 'owner_id']),
+            'methods' => PaymentMethod::cases(),
+        ]);
+    }
+
+    public function updateCorrection(Request $request, OwnerContract $contract): RedirectResponse
+    {
+        $data = $request->validate([
+            'owner_id' => ['nullable', 'integer'],
+            'lines' => ['nullable', 'array'],
+            'lines.*.property_id' => ['nullable', 'integer'],
+            'lines.*.valid_from' => ['nullable', 'date'],
+            'lines.*.valid_to' => ['nullable', 'date'],
+            'lines.*.fixed_amount' => ['nullable', 'string', 'max:20'],
+            'commissions' => ['nullable', 'array'],
+            'commissions.*' => ['nullable', 'string', 'max:10'],
+            'payees' => ['nullable', 'array'],
+            'payees.*.beneficiary_id' => ['nullable', 'integer'],
+            'payees.*.payment_method' => ['nullable', 'string'],
+        ]);
+
+        // Собственикът се пипа само ако е във формата.
+        if (! $request->exists('owner_id')) {
+            unset($data['owner_id']);
+        } else {
+            $data['owner_id'] ??= null;
+        }
+
+        $this->contracts->correct($contract, $data);
+
+        return $this->withIbanWarning(
+            redirect("/owner-contracts/{$contract->id}")->with('status', __('registry.saved')),
+            $contract,
+        );
     }
 
     /**
