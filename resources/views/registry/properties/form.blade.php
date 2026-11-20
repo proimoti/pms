@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @php($isNew = ! $property->exists)
+{{-- В малкия прозорец „+ Нов“ от формите на договорите. --}}
+@php($popup = $isNew && (request()->boolean('popup') || old('popup') === '1'))
 @section('title', $isNew ? __('registry.new.properties') : __('registry.one.properties').' № '.$property->number)
 @section('width', 'full')
 
@@ -10,6 +12,7 @@
     <form method="POST" action="{{ $isNew ? '/properties' : '/properties/'.$property->id }}">
         @csrf
         @unless ($isNew) @method('PUT') @endunless
+        @if ($popup)<input type="hidden" name="popup" value="1">@endif
 
         <div class="grid">
             <div>
@@ -49,7 +52,7 @@
 
         <div class="actions">
             <button type="submit">{{ __('registry.save') }}</button>
-            <a href="{{ $isNew ? '/properties' : '/properties/'.$property->id }}" style="margin-top: 18px;">{{ __('registry.cancel') }}</a>
+            <a href="{{ $isNew ? '/properties' : '/properties/'.$property->id }}" style="margin-top: 18px;" @if ($popup) data-popup-cancel @endif>{{ __('registry.cancel') }}</a>
         </div>
     </form>
 @endsection

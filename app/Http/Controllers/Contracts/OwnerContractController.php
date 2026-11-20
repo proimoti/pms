@@ -12,7 +12,6 @@ use App\Models\Property;
 use App\Models\Scopes\RegistryVisibilityScope;
 use App\Rules\BgDateRule;
 use App\Services\OwnerContractService;
-use App\Support\BgDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +27,8 @@ use Illuminate\View\View;
  */
 class OwnerContractController extends RegistryController
 {
+    use ContractForm;
+
     /** Редове за имоти при отваряне на формата; бутонът „Добави още имоти“ добавя още. */
     private const EMPTY_LINES = 1;
 
@@ -71,7 +72,7 @@ class OwnerContractController extends RegistryController
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        [$data, $errors] = $this->formInput($request, [
             'type' => ['nullable', 'string'],
             'number' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
             'owner_id' => ['nullable', 'integer'],
@@ -86,12 +87,11 @@ class OwnerContractController extends RegistryController
             'lines.*.start_on' => ['nullable', new BgDateRule],
             'lines.*.fixed_amount' => ['nullable', 'string', 'max:20'],
         ]);
-        $data = $this->isoDates($data);
 
         // Празните редове (без имот) се пропускат.
         $data['lines'] = array_values(array_filter($data['lines'] ?? [], fn ($line) => ($line['property_id'] ?? null) !== null));
 
-        $contract = $this->contracts->create($data);
+        $contract = $this->submit($errors, fn () => $this->contracts->create($data));
 
         $redirect = redirect("/owner-contracts/{$contract->id}")->with('status', __('registry.saved'));
 
@@ -128,24 +128,15 @@ class OwnerContractController extends RegistryController
     /** Информационните полета и прекратяването (PROJECT.md, „Поправки“). */
     public function update(Request $request, OwnerContract $contract): RedirectResponse
     {
-        $data = $request->validate([
+        [$data, $errors] = $this->formInput($request, [
             'number' => ['required', 'integer', 'min:1', 'max:4294967295'],
             'signed_on' => ['required', new BgDateRule],
             'end_on' => ['nullable', new BgDateRule],
             'terminated_on' => ['nullable', new BgDateRule],
             'note' => ['nullable', 'string', 'max:5000'],
         ]);
-        $data = $this->isoDates($data);
 
-        // Поле, което не е изпратено (например заключеният срок), не се пипа.
-        $values = [];
-        foreach (['number', 'signed_on', 'end_on', 'terminated_on', 'note'] as $field) {
-            if ($request->exists($field)) {
-                $values[$field] = $data[$field] ?? null;
-            }
-        }
-
-        $contract->update($values);
+        $this->submit($errors, fn () => $this->updateHeader($contract, $this->headerValues($request, $data)));
 
         return redirect("/owner-contracts/{$contract->id}")->with('status', __('registry.saved'));
     }
@@ -178,7 +169,7 @@ class OwnerContractController extends RegistryController
 
     public function storeAnnex(Request $request, OwnerContract $contract): RedirectResponse
     {
-        $data = $request->validate([
+        [$data, $errors] = $this->formInput($request, [
             'number' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
             'signed_on' => ['nullable', new BgDateRule],
             'note' => ['nullable', 'string', 'max:5000'],
@@ -194,13 +185,12 @@ class OwnerContractController extends RegistryController
             'lines.*.from' => ['nullable', new BgDateRule],
             'lines.*.fixed_amount' => ['nullable', 'string', 'max:20'],
         ]);
-        $data = $this->isoDates($data);
 
         // Бенефициентът се сменя само ако е отметнато; празните редове се пропускат.
         $data['payee'] = $request->boolean('change_payee') ? ($data['payee'] ?? []) : null;
         $data['lines'] = array_values(array_filter($data['lines'] ?? [], fn ($line) => ($line['property_id'] ?? null) !== null));
 
-        $annex = $this->contracts->applyAnnex($contract, $data);
+        $annex = $this->submit($errors, fn () => $this->contracts->applyAnnex($contract, $data));
 
         $redirect = redirect("/owner-contracts/{$contract->id}")
             ->with('status', __('contracts.screens.annex_saved', ['number' => $annex->number]));
@@ -232,7 +222,7 @@ class OwnerContractController extends RegistryController
 
     public function updateCorrection(Request $request, OwnerContract $contract): RedirectResponse
     {
-        $data = $request->validate([
+        [$data, $errors] = $this->formInput($request, [
             'owner_id' => ['nullable', 'integer'],
             'lines' => ['nullable', 'array'],
             'lines.*.property_id' => ['nullable', 'integer'],
@@ -245,7 +235,6 @@ class OwnerContractController extends RegistryController
             'payees.*.beneficiary_id' => ['nullable', 'integer'],
             'payees.*.payment_method' => ['nullable', 'string'],
         ]);
-        $data = $this->isoDates($data);
 
         // Собственикът се пипа само ако е във формата.
         if (! $request->exists('owner_id')) {
@@ -254,32 +243,12 @@ class OwnerContractController extends RegistryController
             $data['owner_id'] ??= null;
         }
 
-        $this->contracts->correct($contract, $data);
+        $this->submit($errors, fn () => $this->contracts->correct($contract, $data));
 
         return $this->withIbanWarning(
             redirect("/owner-contracts/{$contract->id}")->with('status', __('registry.saved')),
             $contract,
         );
-    }
-
-    /** Датите от формата (дд.мм.гггг, вече проверени) във вътрешния вид гггг-мм-дд. */
-    private function isoDates(array $data): array
-    {
-        foreach (['signed_on', 'end_on', 'terminated_on', 'from'] as $field) {
-            if (isset($data[$field])) {
-                $data[$field] = BgDate::toIso($data[$field]);
-            }
-        }
-
-        foreach ($data['lines'] ?? [] as $key => $line) {
-            foreach (['start_on', 'from', 'valid_from', 'valid_to'] as $field) {
-                if (isset($line[$field])) {
-                    $data['lines'][$key][$field] = BgDate::toIso($line[$field]);
-                }
-            }
-        }
-
-        return $data;
     }
 
     /**

@@ -134,7 +134,7 @@ class LeaseContractFormRulesTest extends ContractTestCase
         $foreign = $this->inOtherCompany(fn () => $this->tenant());
 
         $this->assertRejected(fn () => $this->leases->correct($contract, ['lines' => [$line->id => ['property_id' => $busy->id]]]), 'lines');
-        $this->assertRejected(fn () => $this->leases->correct($contract, ['lines' => [$line->id => ['rent' => '0']]]), 'lines');
+        $this->assertRejected(fn () => $this->leases->correct($contract, ['lines' => [$line->id => ['rent' => '-1']]]), 'lines');
         $this->assertRejected(fn () => $this->leases->correct($contract, ['tenant_id' => $foreign->id]), 'tenant_id');
         $this->assertRejected(fn () => $this->leases->correct($contract, ['tenant_id' => null]), 'tenant_id');
         $this->assertRejected(fn () => $this->leases->correct($contract, [

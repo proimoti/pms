@@ -43,11 +43,26 @@
         .pagination { display: flex; gap: 14px; justify-content: center; margin-top: 16px; }
         code, .codes { font-family: ui-monospace, Consolas, monospace; }
         .codes { columns: 2; padding-left: 18px; }
+        .date-field { position: relative; display: flex; gap: 6px; align-items: center; }
+        .date-field input[type=text] { flex: 1; min-width: 7.5em; }
+        .date-field .date-pick { margin-top: 0; padding: 8px 10px; line-height: 1; }
+        .date-field .date-native { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+        .with-new { display: flex; gap: 6px; align-items: center; }
+        .with-new select { flex: 1; min-width: 0; }
+        .with-new .quick-new-button { margin-top: 0; padding: 8px 10px; white-space: nowrap; }
+        dialog.quick-new { width: min(820px, 96vw); height: min(88vh, 960px); padding: 0; border: 1px solid var(--line); border-radius: 10px; }
+        dialog.quick-new::backdrop { background: rgba(28, 25, 23, .45); }
+        dialog.quick-new .quick-new-bar { display: flex; justify-content: flex-end; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+        dialog.quick-new .quick-new-bar button { margin-top: 0; }
+        dialog.quick-new iframe { width: 100%; height: calc(100% - 55px); border: 0; display: block; }
+        body.popup .page { padding: 12px; }
     </style>
 </head>
-<body>
+{{-- Малкият прозорец „+ Нов“ (?popup=1): формата е без менюто. --}}
+@php($popup = request()->boolean('popup') || old('popup') === '1')
+<body @class(['popup' => $popup])>
 @auth
-    @if (auth()->user()->role === \App\Enums\Role::Staff)
+    @if (auth()->user()->role === \App\Enums\Role::Staff && ! $popup)
         <nav class="top">
             <a href="/dashboard" @class(['active' => request()->is('dashboard')])>{{ __('registry.menu') }}</a>
             @foreach (__('registry.sections') as $section => $title)
@@ -75,5 +90,51 @@
     @yield('content')
 </main>
 </div>
+<script>
+    (function () {
+        // Календар до полето за дата (PROJECT.md, „Дати в интерфейса“): бутонът
+        // отваря календара на браузъра, изборът се пише като дд.мм.гггг.
+        function toIso(text) {
+            const m = /^\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\s*$/.exec(text);
+            return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : '';
+        }
+
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-date-pick]');
+            if (!button) {
+                return;
+            }
+            const field = button.closest('.date-field');
+            const picker = field.querySelector('[data-date-native]');
+            picker.value = toIso(field.querySelector('[data-date-text]').value);
+            try {
+                picker.showPicker();
+            } catch (error) {
+                picker.focus();
+                picker.click();
+            }
+        });
+
+        document.addEventListener('change', function (event) {
+            if (!event.target.matches('[data-date-native]') || !event.target.value) {
+                return;
+            }
+            const [year, month, day] = event.target.value.split('-');
+            const text = event.target.closest('.date-field').querySelector('[data-date-text]');
+            text.value = day + '.' + month + '.' + year;
+            text.dispatchEvent(new Event('input', { bubbles: true }));
+            text.dispatchEvent(new Event('change', { bubbles: true }));
+            text.focus();
+        });
+
+        // В малкия прозорец „Отказ“ го затваря.
+        document.addEventListener('click', function (event) {
+            if (event.target.closest('[data-popup-cancel]') && window.parent !== window) {
+                event.preventDefault();
+                window.parent.postMessage({ type: 'pms-quick-new-cancel' }, window.location.origin);
+            }
+        });
+    })();
+</script>
 </body>
 </html>

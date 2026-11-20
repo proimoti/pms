@@ -57,11 +57,11 @@ class LeaseContractTest extends ContractTestCase
         $this->assertSame(0, LeaseContract::query()->count());
     }
 
-    public function test_every_line_needs_a_rent_above_zero(): void
+    public function test_every_line_needs_a_rent_of_zero_or_more(): void
     {
         $property = $this->property();
 
-        foreach ([null, '', '0', '0.00', '-5', 'abc', '12.345'] as $rent) {
+        foreach ([null, '', '-5', '-0.01', 'abc', '12.345'] as $rent) {
             $this->assertRejected(fn () => $this->leaseContract([], [
                 'lines' => [['property_id' => $property->id, 'rent' => $rent]],
             ]), 'lines');

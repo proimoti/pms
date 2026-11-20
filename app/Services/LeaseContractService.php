@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Договор за наем: създаване и анекси (PROJECT.md, т. 2 „Договори“). Всеки
- * ред (имот) има месечен наем (над 0) и договорен депозит (0 и повече).
+ * ред (имот) има месечен наем и договорен депозит, и двата 0 и повече (наем 0
+ * е за придружаващ имот, например гараж; PROJECT.md, променено 20.11.2026).
  * Един имот не може да е в два договора за наем за един и същи период.
  * Общите правила за анекси и дати са в ContractService.
  */
@@ -44,18 +45,24 @@ class LeaseContractService extends ContractService
      */
     public function create(array $data): LeaseContract
     {
-        return DB::transaction(function () use ($data) {
+        return $this->collecting($data, function () use ($data) {
             $companyId = $this->companyId($data);
-            $signedOn = $this->date($data['signed_on'] ?? null, 'signed_on', 'signed_on_required');
-            $tenantId = $this->tenantId($companyId, $data['tenant_id'] ?? null);
+            $signedOn = $this->attempt(fn () => $this->date($data['signed_on'] ?? null, 'signed_on', 'signed_on_required'));
+            $endOn = $this->attempt(fn () => isset($data['end_on']) ? $this->date($data['end_on'], 'end_on', 'signed_on_required') : null);
+            $tenantId = $this->attempt(fn () => $this->tenantId($companyId, $data['tenant_id'] ?? null));
+            $this->attempt(fn () => $this->ensureContractNumberIsFree($this->blank($companyId), $data['number'] ?? null));
             $lines = $this->lines($companyId, $data['lines'] ?? [], $signedOn);
+
+            if ($this->failures() > 0) {
+                return null;
+            }
 
             $contract = new LeaseContract;
             $contract->fill([
                 'number' => $data['number'] ?? null,
                 'tenant_id' => $tenantId,
                 'signed_on' => $signedOn,
-                'end_on' => isset($data['end_on']) ? $this->date($data['end_on'], 'end_on', 'signed_on_required') : null,
+                'end_on' => $endOn,
                 'note' => $data['note'] ?? null,
             ]);
             $contract->company_id = $companyId;
@@ -88,10 +95,14 @@ class LeaseContractService extends ContractService
     {
         return DB::transaction(function () use ($annex, $property, $from, $rent, $deposit) {
             $contract = $this->contractOf($annex);
-            $propertyId = $this->propertyId($contract->company_id, $property);
-            $rent = $this->rent($rent);
-            $deposit = $this->deposit($deposit);
-            $from = $this->addDate($contract, $from);
+            $before = $this->failures();
+            $propertyId = $this->attempt(fn () => $this->propertyId($contract->company_id, $property));
+            $rent = $this->attempt(fn () => $this->rent($rent));
+            $deposit = $this->attempt(fn () => $this->deposit($deposit));
+            $from = $this->attempt(fn () => $this->addDate($contract, $from));
+            if ($this->failures() > $before) {
+                throw new SkippedCheck;
+            }
 
             $line = $this->newLine($contract, $propertyId, $from, $rent, $deposit, $annex);
             $this->ensurePropertyIsFree($contract->company_id, $propertyId, $contract);
@@ -110,39 +121,32 @@ class LeaseContractService extends ContractService
      */
     public function applyAnnex(LeaseContract $contract, array $data): LeaseContractAnnex
     {
-        return DB::transaction(function () use ($contract, $data) {
+        return $this->collecting($data, function () use ($contract, $data) {
             $endOn = $data['end_on'] ?? null;
             $lines = array_values($data['lines'] ?? []);
-            $from = $data['from'] ?? null;
             $changesTerm = $endOn !== null && $endOn !== '';
 
             if (! $changesTerm && $lines === []) {
-                $this->reject('changes', 'annex_no_changes');
+                $this->attempt(fn () => $this->reject('changes', 'annex_no_changes'));
             }
 
-            $needsFrom = collect($lines)->contains(fn ($line) => ($line['from'] ?? null) === null || $line['from'] === '');
-            if ($needsFrom && ($from === null || $from === '')) {
-                $this->reject('from', 'annex_from_required');
-            }
-
-            $number = $data['number'] ?? null;
-            $annex = $this->addAnnex($contract, $number === null || $number === '' ? $this->nextAnnexNumber($contract) : (int) $number,
-                $data['signed_on'] ?? null, $data['note'] ?? null);
+            $from = $this->annexFrom($lines, $data['from'] ?? null);
+            $annex = $this->annexForChanges($contract, $data);
 
             foreach ($lines as $line) {
                 $lineFrom = ($line['from'] ?? null) ?: $from;
                 $property = (int) ($line['property_id'] ?? 0);
 
-                match ($line['action'] ?? null) {
+                $this->attempt(fn () => match ($line['action'] ?? null) {
                     'change' => $this->changeTerms($annex, $property, $lineFrom, $line['rent'] ?? null, $line['deposit'] ?? null),
                     'add' => $this->addProperty($annex, $property, $lineFrom, $line['rent'] ?? null, $line['deposit'] ?? null),
                     'remove' => $this->removeProperty($annex, $property, $lineFrom),
                     default => $this->reject('lines', 'line_action_unknown'),
-                };
+                });
             }
 
             if ($changesTerm) {
-                $this->extendTerm($annex, $endOn);
+                $this->attempt(fn () => $this->extendTerm($annex, $endOn));
             }
 
             return $annex->refresh();
@@ -153,15 +157,19 @@ class LeaseContractService extends ContractService
     public function changeTerms(LeaseContractAnnex $annex, Property|int $property, $from, $rent, $deposit): LeaseContractLine
     {
         $change = [];
+        $before = $this->failures();
         if ($rent !== null && $rent !== '') {
-            $change['rent'] = $this->rent($rent);
+            $change['rent'] = $this->attempt(fn () => $this->rent($rent));
         }
         if ($deposit !== null && $deposit !== '') {
-            $change['deposit'] = $this->deposit($deposit);
+            $change['deposit'] = $this->attempt(fn () => $this->deposit($deposit));
         }
 
         if ($change === []) {
             $this->reject('lines', 'lease_change_empty');
+        }
+        if ($this->failures() > $before) {
+            throw new SkippedCheck;
         }
 
         return $this->changeLine($annex, $property, $from, $change);
@@ -181,23 +189,27 @@ class LeaseContractService extends ContractService
             $this->reject('changes', 'correction_after_charges');
         }
 
-        return DB::transaction(function () use ($contract, $data) {
+        return $this->collecting($data, function () use ($contract, $data) {
             $contract = LeaseContract::query()->withoutGlobalScopes()
                 ->where('company_id', $contract->company_id)->lockForUpdate()->findOrFail($contract->id);
 
             if (array_key_exists('tenant_id', $data)) {
-                $contract->tenant_id = $this->tenantId($contract->company_id, $data['tenant_id']);
-                $contract->save();
+                $this->attempt(function () use ($contract, $data) {
+                    $contract->tenant_id = $this->tenantId($contract->company_id, $data['tenant_id']);
+                    $contract->save();
+                });
             }
 
             foreach ($data['lines'] ?? [] as $id => $values) {
-                $this->correctLine($contract, (int) $id, (array) $values);
+                $this->attempt(fn () => $this->correctLine($contract, (int) $id, (array) $values));
             }
 
-            $start = $contract->startsOn();
-            if ($contract->terminated_on !== null && $start !== null && $contract->terminated_on->lte($start)) {
-                $this->reject('lines', 'terminated_before_start');
-            }
+            $this->attempt(function () use ($contract) {
+                $start = $contract->startsOn();
+                if ($contract->terminated_on !== null && $start !== null && $contract->terminated_on->lte($start)) {
+                    $this->reject('lines', 'terminated_before_start');
+                }
+            });
 
             $this->ensurePropertiesAreFree($contract);
 
@@ -323,7 +335,7 @@ class LeaseContractService extends ContractService
 
     private function rent($rent): string
     {
-        return $this->money($rent, 'lines', 'rent_required');
+        return $this->money($rent, 'lines', 'rent_required', allowZero: true);
     }
 
     /** Празен депозит = 0 (без депозит). */
@@ -334,19 +346,48 @@ class LeaseContractService extends ContractService
             : $this->money($deposit, 'lines', 'deposit_invalid', allowZero: true);
     }
 
-    /** @return list<array{property_id: int, start_on: CarbonImmutable, rent: string, deposit: string}> */
-    private function lines(int $companyId, array $lines, CarbonImmutable $signedOn): array
+    /**
+     * Редовете на нов договор: всяко поле на всеки ред се проверява отделно,
+     * а застъпването, щом имотът и датата на реда са верни.
+     *
+     * @return list<array{property_id: int, start_on: CarbonImmutable, rent: string, deposit: string}>
+     */
+    private function lines(int $companyId, array $lines, ?CarbonImmutable $signedOn): array
     {
         if ($lines === []) {
-            $this->reject('lines', 'lines_required');
+            $this->attempt(fn () => $this->reject('lines', 'lines_required'));
         }
 
-        return array_map(fn (array $line) => [
-            'property_id' => $this->propertyId($companyId, $line['property_id'] ?? null),
-            'start_on' => $this->lineStart($line, $signedOn),
-            'rent' => $this->rent($line['rent'] ?? null),
-            'deposit' => $this->deposit($line['deposit'] ?? null),
-        ], array_values($lines));
+        $result = [];
+        $earlier = [];
+
+        foreach (array_values($lines) as $line) {
+            $before = $this->failures();
+            $propertyId = $this->attempt(fn () => $this->propertyId($companyId, $line['property_id'] ?? null));
+            $start = $this->attempt(fn () => $this->lineStart($line, $signedOn));
+            $rent = $this->attempt(fn () => $this->rent($line['rent'] ?? null));
+            $deposit = $this->attempt(fn () => $this->deposit($line['deposit'] ?? null));
+
+            if ($propertyId !== null && $start !== null) {
+                $this->attempt(fn () => $this->ensureFreeFrom($this->blank($companyId), $companyId, $propertyId, $start, $earlier));
+                $earlier[] = $propertyId;
+            }
+
+            if ($this->failures() === $before) {
+                $result[] = ['property_id' => $propertyId, 'start_on' => $start, 'rent' => $rent, 'deposit' => $deposit];
+            }
+        }
+
+        return $result;
+    }
+
+    /** Празен договор на фирмата: само за проверките преди записа. */
+    private function blank(int $companyId): LeaseContract
+    {
+        $contract = new LeaseContract;
+        $contract->company_id = $companyId;
+
+        return $contract;
     }
 
     private function newLine(LeaseContract $contract, int $propertyId, CarbonImmutable $from, string $rent, string $deposit, ?LeaseContractAnnex $annex = null): LeaseContractLine

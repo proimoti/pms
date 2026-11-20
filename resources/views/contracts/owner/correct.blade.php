@@ -19,7 +19,8 @@
         @method('PUT')
 
         <label for="owner_id">{{ __('contracts.screens.fields.owner') }}@unless ($contract->type === OwnerContractType::Own) *@endunless</label>
-        <select id="owner_id" name="owner_id" style="max-width: 520px;">
+        <div class="with-new">
+        <select data-quick-section="owners" id="owner_id" name="owner_id" style="max-width: 520px;">
             @if ($contract->type === OwnerContractType::Own)
                 <option value="">{{ __('contracts.screens.own_company') }}</option>
             @endif
@@ -29,6 +30,8 @@
                 </option>
             @endforeach
         </select>
+            @include('contracts.partials.new-button', ['section' => 'owners'])
+        </div>
 
         <h2>{{ __('contracts.screens.sections.lines') }}</h2>
         <div class="table-wrap">
@@ -48,7 +51,8 @@
                 @foreach ($contract->lines as $line)
                     <tr>
                         <td>
-                            <select name="lines[{{ $line->id }}][property_id]" aria-label="{{ __('contracts.screens.fields.property') }}">
+                            <div class="with-new">
+                            <select data-quick-section="properties" name="lines[{{ $line->id }}][property_id]" aria-label="{{ __('contracts.screens.fields.property') }}">
                                 {{-- Сегашният имот е в списъка, дори да е архивиран или неприкачен. --}}
                                 @unless ($properties->contains('id', $line->property_id))
                                     <option value="{{ $line->property_id }}" selected>№ {{ $line->property?->number }}</option>
@@ -59,11 +63,13 @@
                                     </option>
                                 @endforeach
                             </select>
+                                @include('contracts.partials.new-button', ['section' => 'properties'])
+                            </div>
                         </td>
-                        <td><input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="lines[{{ $line->id }}][valid_from]" value="{{ \App\Support\BgDate::toInput(old("lines.{$line->id}.valid_from", $line->valid_from->toDateString())) }}" aria-label="{{ __('contracts.screens.fields.from') }}"></td>
+                        <td><x-date-input name="lines[{{ $line->id }}][valid_from]" aria-label="{{ __('contracts.screens.fields.from') }}" :value="old('lines.'.$line->id.'.valid_from', $line->valid_from->toDateString())" /></td>
                         <td>
                             @if ($line->closed_by_annex_id)
-                                <input type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="lines[{{ $line->id }}][valid_to]" value="{{ \App\Support\BgDate::toInput(old("lines.{$line->id}.valid_to", $line->valid_to?->toDateString())) }}" aria-label="{{ __('contracts.screens.fields.to') }}">
+                                <x-date-input name="lines[{{ $line->id }}][valid_to]" aria-label="{{ __('contracts.screens.fields.to') }}" :value="old('lines.'.$line->id.'.valid_to', $line->valid_to?->toDateString())" />
                             @else
                                 {{ Format::date($line->valid_to) }}
                             @endif
@@ -152,4 +158,6 @@
             <a href="/owner-contracts/{{ $contract->id }}" style="margin-top: 18px;">{{ __('registry.cancel') }}</a>
         </div>
     </form>
+
+    @include('contracts.partials.quick-new')
 @endsection

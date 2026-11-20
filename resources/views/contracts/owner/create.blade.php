@@ -27,7 +27,8 @@
             </div>
             <div>
                 <label for="owner_id">{{ __('contracts.screens.fields.owner') }}</label>
-                <select id="owner_id" name="owner_id">
+                <div class="with-new">
+                <select data-quick-section="owners" id="owner_id" name="owner_id">
                     <option value="">{{ __('registry.none') }}</option>
                     @foreach ($owners as $owner)
                         <option value="{{ $owner->id }}" @selected((string) old('owner_id') === (string) $owner->id)>
@@ -35,15 +36,17 @@
                         </option>
                     @endforeach
                 </select>
+                    @include('contracts.partials.new-button', ['section' => 'owners'])
+                </div>
             </div>
             <div>
                 <label for="signed_on">{{ __('contracts.screens.fields.signed_on') }} *</label>
-                <input id="signed_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="signed_on" value="{{ \App\Support\BgDate::toInput(old('signed_on')) }}" required>
+                <x-date-input id="signed_on" name="signed_on" required :value="old('signed_on')" />
                 <div class="muted">{{ __('contracts.screens.hints.signed_on') }}</div>
             </div>
             <div>
                 <label for="end_on">{{ __('contracts.screens.fields.end_on') }}</label>
-                <input id="end_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="end_on" value="{{ \App\Support\BgDate::toInput(old('end_on')) }}">
+                <x-date-input id="end_on" name="end_on" :value="old('end_on')" />
                 <div class="muted">{{ __('contracts.screens.hints.end_on') }}</div>
             </div>
         </div>
@@ -152,4 +155,6 @@
             hideOwnerHimself();
         })();
     </script>
+
+    @include('contracts.partials.quick-new')
 @endsection

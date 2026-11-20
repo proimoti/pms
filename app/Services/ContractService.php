@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\Property;
 use App\Models\Scopes\CompanyScope;
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\MessageBag;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use Throwable;
@@ -19,9 +22,22 @@ use Throwable;
  * и добавя нов от тази дата. Всяка операция е в една транзакция: при отказ
  * не остава нищо. Защитата „един имот в един договор от този вид за един
  * период“ е тук: имотът се заключва в базата, докато трае проверката.
+ *
+ * Всички грешки наведнъж (PROJECT.md, „Дати в интерфейса“, 20.11.2026): записът
+ * от формата (нов договор, анекс, поправка) върви в collecting(). Всяка част
+ * се проверява отделно в attempt(): при грешка тя се връща назад, грешката се
+ * пази и проверката продължава. Накрая, ако има грешки, не се записва нищо и
+ * се показват всички. Отделните операции (например changeRent) извън формата
+ * спират на първата грешка, както досега.
  */
 abstract class ContractService
 {
+    /** Събраните грешки при записа от формата; null = първата грешка спира. */
+    private ?MessageBag $collected = null;
+
+    /** Колко части са с грешка (и такива без собствено съобщение). */
+    private int $failures = 0;
+
     /** Класът на заглавието (OwnerContract, LeaseContract). */
     abstract protected function contractClass(): string;
 
@@ -44,14 +60,23 @@ abstract class ContractService
     {
         return DB::transaction(function () use ($contract, $number, $signedOn, $note) {
             $class = $this->annexClass();
-            $taken = $class::query()->withoutGlobalScopes()
-                ->where('company_id', $contract->company_id)
-                ->where($this->contractKey(), $contract->id)
-                ->where('number', $number)
-                ->exists();
+            $before = $this->failures;
 
-            if ($number < 1 || $taken) {
-                $this->reject('number', 'annex_number_taken', ['number' => $number]);
+            $this->attempt(function () use ($class, $contract, $number) {
+                $taken = $class::query()->withoutGlobalScopes()
+                    ->where('company_id', $contract->company_id)
+                    ->where($this->contractKey(), $contract->id)
+                    ->where('number', $number)
+                    ->exists();
+
+                if ($number < 1 || $taken) {
+                    $this->reject('number', 'annex_number_taken', ['number' => $number]);
+                }
+            });
+            $signedOn = $this->attempt(fn () => $this->date($signedOn, 'signed_on', 'signed_on_required'));
+
+            if ($this->failures > $before) {
+                throw new SkippedCheck;
             }
 
             $annex = new $class;
@@ -59,12 +84,56 @@ abstract class ContractService
                 'company_id' => $contract->company_id,
                 $this->contractKey() => $contract->id,
                 'number' => $number,
-                'signed_on' => $this->date($signedOn, 'signed_on', 'signed_on_required'),
+                'signed_on' => $signedOn,
                 'note' => $note,
             ])->save();
 
             return $annex;
         });
+    }
+
+    /**
+     * Анексът от формата. Ако самият анекс е грешен (зает номер, грешна
+     * дата), промените в него пак се проверяват с временен анекс; накрая
+     * всичко се връща назад, защото има грешка.
+     */
+    protected function annexForChanges(Model $contract, array $data): Model
+    {
+        $number = $data['number'] ?? null;
+
+        $annex = $this->attempt(fn () => $this->addAnnex($contract,
+            $number === null || $number === '' ? $this->nextAnnexNumber($contract) : (int) $number,
+            $data['signed_on'] ?? null, $data['note'] ?? null));
+
+        if ($annex !== null) {
+            return $annex;
+        }
+
+        $class = $this->annexClass();
+        $standIn = new $class;
+        $standIn->forceFill([
+            'company_id' => $contract->company_id,
+            $this->contractKey() => $contract->id,
+            'number' => $this->nextAnnexNumber($contract),
+            'signed_on' => CarbonImmutable::today(),
+        ])->save();
+
+        return $standIn;
+    }
+
+    /** Общата дата на анекса: ако липсва, а трябва, редовете без своя дата не се проверяват. */
+    protected function annexFrom(array $lines, $from, bool $alsoNeeded = false)
+    {
+        $needsFrom = $alsoNeeded
+            || collect($lines)->contains(fn ($line) => ($line['from'] ?? null) === null || $line['from'] === '');
+
+        if ($needsFrom && ($from === null || $from === '')) {
+            $this->attempt(fn () => $this->reject('from', 'annex_from_required'));
+
+            return InvalidInput::instance();
+        }
+
+        return $from;
     }
 
     /**
@@ -112,47 +181,61 @@ abstract class ContractService
      */
     protected function correctLine(Model $contract, int $id, array $values): void
     {
-        $line = $contract->lines()->whereKey($id)->lockForUpdate()->first()
-            ?? $this->reject('lines', 'row_not_in_contract');
+        DB::transaction(function () use ($contract, $id, $values) {
+            $line = $contract->lines()->whereKey($id)->lockForUpdate()->first()
+                ?? $this->reject('lines', 'row_not_in_contract');
+            $before = $this->failures;
 
-        if (array_key_exists('property_id', $values)) {
-            $line->property_id = $this->propertyId($contract->company_id, $values['property_id']);
-        }
+            if (array_key_exists('property_id', $values)) {
+                $this->attempt(function () use ($contract, $line, $values) {
+                    $line->property_id = $this->propertyId($contract->company_id, $values['property_id']);
+                });
+            }
 
-        $this->correctLineValues($contract, $line, $values);
+            $this->attempt(fn () => $this->correctLineValues($contract, $line, $values));
 
-        if (array_key_exists('valid_from', $values)) {
-            $from = $this->date($values['valid_from'], 'lines', 'period_invalid');
+            if (array_key_exists('valid_from', $values)) {
+                $this->attempt(function () use ($contract, $line, $values) {
+                    $from = $this->date($values['valid_from'], 'lines', 'period_invalid');
 
-            if (! $from->equalTo($line->valid_from)) {
-                $previous = $contract->lines()
-                    ->where('property_id', $line->getOriginal('property_id'))
-                    ->where('valid_to', $line->valid_from->toDateString())
-                    ->lockForUpdate()->first();
+                    if (! $from->equalTo($line->valid_from)) {
+                        $previous = $contract->lines()
+                            ->where('property_id', $line->getOriginal('property_id'))
+                            ->where('valid_to', $line->valid_from->toDateString())
+                            ->lockForUpdate()->first();
 
-                if ($previous !== null) {
-                    if ($from->lte($previous->valid_from)) {
-                        $this->reject('lines', 'change_too_early');
+                        if ($previous !== null) {
+                            if ($from->lte($previous->valid_from)) {
+                                $this->reject('lines', 'change_too_early');
+                            }
+                            $previous->forceFill(['valid_to' => $from])->save();
+                        }
+
+                        $line->valid_from = $from;
                     }
-                    $previous->forceFill(['valid_to' => $from])->save();
-                }
-
-                $line->valid_from = $from;
+                });
             }
-        }
 
-        if (array_key_exists('valid_to', $values)) {
-            if ($line->closed_by_annex_id === null) {
-                $this->reject('lines', 'end_not_editable');
+            if (array_key_exists('valid_to', $values)) {
+                $this->attempt(function () use ($line, $values) {
+                    if ($line->closed_by_annex_id === null) {
+                        $this->reject('lines', 'end_not_editable');
+                    }
+                    $line->valid_to = $this->date($values['valid_to'], 'lines', 'period_invalid');
+                });
             }
-            $line->valid_to = $this->date($values['valid_to'], 'lines', 'period_invalid');
-        }
 
-        if ($line->valid_to !== null && $line->valid_to->lte($line->valid_from)) {
-            $this->reject('lines', 'period_invalid');
-        }
+            // Ред с грешка не се записва (и промяната на предишния му вариант се връща).
+            if ($this->failures > $before) {
+                throw new SkippedCheck;
+            }
 
-        $line->save();
+            if ($line->valid_to !== null && $line->valid_to->lte($line->valid_from)) {
+                $this->reject('lines', 'period_invalid');
+            }
+
+            $line->save();
+        });
     }
 
     /** Сумите на реда при поправка (договорът за управление: сума; за наем: наем и депозит). */
@@ -191,8 +274,56 @@ abstract class ContractService
             ->distinct()->orderBy('property_id')->pluck('property_id');
 
         foreach ($ids as $id) {
-            $this->ensurePropertyIsFree($contract->company_id, (int) $id, $contract);
+            $this->attempt(fn () => $this->ensurePropertyIsFree($contract->company_id, (int) $id, $contract));
         }
+    }
+
+    /**
+     * Проверка преди записа на нов договор: имотът свободен ли е от датата
+     * нататък (новият ред е без край) и не е ли вече в същата форма. Така
+     * застъпването се вижда заедно с другите грешки. Записът после пак минава
+     * през ensurePropertyIsFree (със заключване).
+     *
+     * @param  list<int>  $earlier  имотите от предишните редове на формата
+     */
+    protected function ensureFreeFrom(Model $contract, int $companyId, int $propertyId, CarbonImmutable $from, array $earlier): void
+    {
+        $number = fn () => DB::table('properties')->where('company_id', $companyId)->where('id', $propertyId)->value('number');
+
+        if (in_array($propertyId, $earlier, true)) {
+            $this->reject('lines', 'property_twice', ['property' => $number()]);
+        }
+
+        $busy = $this->periodsOf($contract, $companyId, $propertyId, lock: false)
+            ->first(fn ($p) => $p['to'] === null || $p['to'] > $from->toDateString());
+
+        if ($busy !== null) {
+            $this->reject('lines', $this->busyMessage(), ['property' => $number(), 'contract' => $busy['number']]);
+        }
+    }
+
+    /** Периодите на имота в неархивираните договори от този вид (без празните). */
+    private function periodsOf(Model $contract, int $companyId, int $propertyId, bool $lock = true): Collection
+    {
+        $contracts = $contract->getTable();
+        $lines = $contract->lines()->getRelated()->getTable();
+        $key = $this->contractKey();
+
+        return DB::table("{$lines} as l")
+            ->join("{$contracts} as c", fn ($join) => $join->on('c.id', '=', "l.{$key}")->on('c.company_id', '=', 'l.company_id'))
+            ->where('l.company_id', $companyId)
+            ->where('l.property_id', $propertyId)
+            ->whereNull('c.archived_at')
+            ->when($lock, fn ($query) => $query->lockForUpdate())
+            ->get(["l.{$key} as contract_id", 'l.valid_from', 'l.valid_to', 'c.terminated_on', 'c.number'])
+            ->map(function ($row) {
+                $ends = array_filter([$row->valid_to, $row->terminated_on]);
+
+                return ['contract' => (int) $row->contract_id, 'number' => (int) $row->number,
+                    'from' => substr($row->valid_from, 0, 10), 'to' => $ends === [] ? null : substr(min($ends), 0, 10)];
+            })
+            ->filter(fn ($p) => $p['to'] === null || $p['to'] > $p['from'])
+            ->values();
     }
 
     /**
@@ -205,25 +336,7 @@ abstract class ContractService
         // Заключва имота до края на транзакцията: два записа едновременно чакат един друг.
         $property = DB::table('properties')->where('company_id', $companyId)->where('id', $propertyId)->lockForUpdate()->first();
 
-        $contracts = $current->getTable();
-        $lines = $current->lines()->getRelated()->getTable();
-        $key = $this->contractKey();
-
-        $periods = DB::table("{$lines} as l")
-            ->join("{$contracts} as c", fn ($join) => $join->on('c.id', '=', "l.{$key}")->on('c.company_id', '=', 'l.company_id'))
-            ->where('l.company_id', $companyId)
-            ->where('l.property_id', $propertyId)
-            ->whereNull('c.archived_at')
-            ->lockForUpdate()
-            ->get(["l.{$key} as contract_id", 'l.valid_from', 'l.valid_to', 'c.terminated_on', 'c.number'])
-            ->map(function ($row) {
-                $ends = array_filter([$row->valid_to, $row->terminated_on]);
-
-                return ['contract' => (int) $row->contract_id, 'number' => (int) $row->number,
-                    'from' => $row->valid_from, 'to' => $ends === [] ? null : min($ends)];
-            })
-            ->filter(fn ($p) => $p['to'] === null || $p['to'] > $p['from'])
-            ->values();
+        $periods = $this->periodsOf($current, $companyId, $propertyId);
 
         foreach ($periods as $i => $a) {
             foreach ($periods->slice($i + 1) as $b) {
@@ -288,6 +401,10 @@ abstract class ContractService
 
     protected function date($value, string $field, string $message): CarbonImmutable
     {
+        if ($value instanceof InvalidInput) {
+            throw new SkippedCheck; // формата вече казва, че датата е грешна
+        }
+
         if ($value === null || $value === '') {
             $this->reject($field, $message);
         }
@@ -299,12 +416,107 @@ abstract class ContractService
         }
     }
 
-    /** Началната дата на всеки ред; празна = датата на договора. */
-    protected function lineStart(array $line, CarbonImmutable $signedOn): CarbonImmutable
+    /**
+     * Началната дата на всеки ред; празна = датата на договора. Ако датата на
+     * договора е грешна (null), ред без своя дата не може да се провери.
+     */
+    protected function lineStart(array $line, ?CarbonImmutable $signedOn): CarbonImmutable
     {
-        return isset($line['start_on']) && $line['start_on'] !== ''
-            ? $this->date($line['start_on'], 'lines', 'signed_on_required')
-            : $signedOn;
+        if (isset($line['start_on']) && $line['start_on'] !== '') {
+            return $this->date($line['start_on'], 'lines', 'signed_on_required');
+        }
+
+        return $signedOn ?? throw new SkippedCheck;
+    }
+
+    /** Свободен ли е ръчно даденият номер на нов договор (празен = автоматичен). */
+    protected function ensureContractNumberIsFree(Model $contract, $number): void
+    {
+        if ($number === null || $number === '') {
+            return;
+        }
+
+        $contract->number = (int) $number;
+        $contract->ensureNumberIsFree();
+    }
+
+    // Всички грешки наведнъж
+
+    /**
+     * Записът от формата: всички части се проверяват, грешките се събират и,
+     * ако има поне една, не се записва нищо (всичко е в една транзакция).
+     * Знак InvalidInput в данните (грешно поле във формата) също отказва записа.
+     */
+    protected function collecting(array $data, Closure $body): mixed
+    {
+        if ($this->collected !== null) {
+            return $body();
+        }
+
+        $this->collected = new MessageBag;
+        $this->failures = InvalidInput::isIn($data) ? 1 : 0;
+
+        try {
+            return DB::transaction(function () use ($body) {
+                $result = null;
+
+                try {
+                    $result = $body();
+                } catch (ValidationException $e) {
+                    $this->keep($e);
+                } catch (SkippedCheck) {
+                    $this->failures++;
+                }
+
+                if ($this->failures > 0) {
+                    throw ValidationException::withMessages($this->collected->toArray());
+                }
+
+                return $result;
+            });
+        } finally {
+            $this->collected = null;
+            $this->failures = 0;
+        }
+    }
+
+    /**
+     * Една отделна част от записа. При събиране на грешките: ако е грешна,
+     * се връща назад (в базата), грешката се пази и се връща $fallback. Без
+     * събиране грешката спира всичко, както досега.
+     */
+    protected function attempt(Closure $part, mixed $fallback = null): mixed
+    {
+        if ($this->collected === null) {
+            return $part();
+        }
+
+        try {
+            return DB::transaction(fn () => $part());
+        } catch (ValidationException $e) {
+            $this->keep($e);
+        } catch (SkippedCheck) {
+            $this->failures++;
+        }
+
+        return $fallback;
+    }
+
+    /** Колко части досега са с грешка (за „има ли нова грешка в този ред“). */
+    protected function failures(): int
+    {
+        return $this->failures;
+    }
+
+    private function keep(ValidationException $e): void
+    {
+        $this->failures++;
+
+        foreach ($e->errors() as $field => $messages) {
+            foreach ((array) $messages as $message) {
+                $this->collected->add($field, $message); // еднакво съобщение се показва веднъж
+            }
+        }
     }
 
     // Варианти

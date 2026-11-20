@@ -71,7 +71,7 @@ trait HasCompanyNumber
     /** След ръчна смяна на номера. Имотът резервира стария номер. */
     protected function numberWasChanged(int $oldNumber): void {}
 
-    protected function ensureNumberIsFree(): void
+    public function ensureNumberIsFree(): void
     {
         if ($this->isNumberReserved()) {
             throw ValidationException::withMessages([

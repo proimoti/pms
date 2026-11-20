@@ -9,7 +9,9 @@ use App\Models\PropertyType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Support\Address;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /** Екранът „Имоти“. */
 class PropertyController extends RegistryController
@@ -42,11 +44,11 @@ class PropertyController extends RegistryController
         return view('registry.properties.form', ['property' => new Property] + $this->choices());
     }
 
-    public function store(PropertyRequest $request): RedirectResponse
+    public function store(PropertyRequest $request): Response
     {
         $property = Property::query()->create($request->validated());
 
-        return redirect("/properties/{$property->id}")->with('status', __('registry.saved'));
+        return $this->created($request, $property, '№ '.$property->number.' '.Address::format($property));
     }
 
     public function show(Property $property): View

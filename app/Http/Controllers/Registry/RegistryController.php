@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Общото за екраните на регистъра: списък с търсене и страници по 50,
@@ -41,6 +42,21 @@ abstract class RegistryController extends Controller
     protected function paginate(Builder $query)
     {
         return $query->paginate(self::PER_PAGE)->withQueryString();
+    }
+
+    /**
+     * След запис на нов запис: отваря го; в малкия прозорец „+ Нов“ от формите
+     * на договорите вместо това казва на формата кой е (PROJECT.md, 20.11.2026).
+     */
+    protected function created(Request $request, Model $record, string $label): Response
+    {
+        if ($request->boolean('popup')) {
+            return response()->view('registry.partials.quick-saved', [
+                'section' => $this->section(), 'id' => $record->getKey(), 'label' => $label,
+            ]);
+        }
+
+        return redirect("/{$this->section()}/{$record->getKey()}")->with('status', __('registry.saved'));
     }
 
     protected function archiveRecord(Model $record): RedirectResponse

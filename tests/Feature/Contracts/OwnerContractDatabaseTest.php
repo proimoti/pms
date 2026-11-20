@@ -81,7 +81,7 @@ class OwnerContractDatabaseTest extends ContractTestCase
         $this->assertDatabaseRefuses('owner_contract_lines_amount_check',
             fn () => DB::table('owner_contract_lines')->insert($this->lineRow($fixed, ['fixed_amount' => null])));
         $this->assertDatabaseRefuses('owner_contract_lines_amount_check',
-            fn () => DB::table('owner_contract_lines')->insert($this->lineRow($fixed, ['fixed_amount' => '0.00'])));
+            fn () => DB::table('owner_contract_lines')->insert($this->lineRow($fixed, ['fixed_amount' => '-1.00'])));
     }
 
     public function test_line_cannot_pretend_another_calculation_than_its_contract(): void

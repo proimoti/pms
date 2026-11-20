@@ -12,7 +12,8 @@
         <div class="grid">
             <div>
                 <label for="tenant_id">{{ __('contracts.screens.fields.tenant') }} *</label>
-                <select id="tenant_id" name="tenant_id" required>
+                <div class="with-new">
+                <select data-quick-section="tenants" id="tenant_id" name="tenant_id" required>
                     <option value=""></option>
                     @foreach ($tenants as $tenant)
                         <option value="{{ $tenant->id }}" @selected((string) old('tenant_id') === (string) $tenant->id)>
@@ -20,6 +21,8 @@
                         </option>
                     @endforeach
                 </select>
+                    @include('contracts.partials.new-button', ['section' => 'tenants'])
+                </div>
             </div>
             <div>
                 <label for="number">{{ __('contracts.screens.fields.number') }}</label>
@@ -28,12 +31,12 @@
             </div>
             <div>
                 <label for="signed_on">{{ __('contracts.screens.fields.signed_on') }} *</label>
-                <input id="signed_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="signed_on" value="{{ \App\Support\BgDate::toInput(old('signed_on')) }}" required>
+                <x-date-input id="signed_on" name="signed_on" required :value="old('signed_on')" />
                 <div class="muted">{{ __('contracts.screens.hints.signed_on') }}</div>
             </div>
             <div>
                 <label for="end_on">{{ __('contracts.screens.fields.end_on') }}</label>
-                <input id="end_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="end_on" value="{{ \App\Support\BgDate::toInput(old('end_on')) }}">
+                <x-date-input id="end_on" name="end_on" :value="old('end_on')" />
                 <div class="muted">{{ __('contracts.screens.hints.end_on') }}</div>
             </div>
         </div>
@@ -85,4 +88,6 @@
             });
         })();
     </script>
+
+    @include('contracts.partials.quick-new')
 @endsection

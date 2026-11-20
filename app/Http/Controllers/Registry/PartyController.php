@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Общо за екраните „Собственици“ и „Наематели“.
@@ -43,7 +44,7 @@ abstract class PartyController extends RegistryController
         return view('registry.parties.form', ['party' => new $class, 'section' => $this->section()]);
     }
 
-    public function store(PartyRequest $request): RedirectResponse
+    public function store(PartyRequest $request): Response
     {
         $data = $request->validated();
         $class = $this->modelClass();
@@ -59,7 +60,8 @@ abstract class PartyController extends RegistryController
 
         $party = $class::query()->create($data);
 
-        return redirect("/{$this->section()}/{$party->id}")->with('status', __('registry.saved'));
+        return $this->created($request, $party,
+            '№ '.$party->number.' '.$party->name.' ('.__('registry.kinds.'.$party->kind->value).')');
     }
 
     protected function showRecord(Party $party): View

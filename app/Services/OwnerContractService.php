@@ -58,7 +58,7 @@ class OwnerContractService extends ContractService
      */
     public function create(array $data): OwnerContract
     {
-        return DB::transaction(function () use ($data) {
+        return $this->collecting($data, function () use ($data) {
             $companyId = $this->companyId($data);
             $type = $data['type'] instanceof OwnerContractType ? $data['type'] : OwnerContractType::tryFrom((string) ($data['type'] ?? ''));
             if ($type === null) {
@@ -66,11 +66,22 @@ class OwnerContractService extends ContractService
             }
             $calculation = $type->calculation();
 
-            $signedOn = $this->date($data['signed_on'] ?? null, 'signed_on', 'signed_on_required');
-            $owner = $this->owner($companyId, $type, $data['owner_id'] ?? null);
-            $percent = $this->percent($calculation, $data['commission_percent'] ?? null);
-            [$beneficiaryId, $method] = $this->payee($companyId, $calculation, $data['beneficiary_id'] ?? null, $data['payment_method'] ?? null);
+            $signedOn = $this->attempt(fn () => $this->date($data['signed_on'] ?? null, 'signed_on', 'signed_on_required'));
+            $endOn = $this->attempt(fn () => isset($data['end_on']) ? $this->date($data['end_on'], 'end_on', 'signed_on_required') : null);
+            $owner = $this->attempt(fn () => $this->owner($companyId, $type, $data['owner_id'] ?? null));
+            if ($owner !== null) {
+                $this->attempt(fn () => $this->blank($companyId, ['type' => $type, 'owner_id' => $owner->id])->ensureOwnerKindFitsType());
+            }
+            $percent = $this->attempt(fn () => $this->percent($calculation, $data['commission_percent'] ?? null));
+            [$beneficiaryId, $method] = $this->attempt(
+                fn () => $this->payee($companyId, $calculation, $data['beneficiary_id'] ?? null, $data['payment_method'] ?? null),
+                [null, null]);
+            $this->attempt(fn () => $this->ensureContractNumberIsFree($this->blank($companyId), $data['number'] ?? null));
             $lines = $this->lines($companyId, $calculation, $data['lines'] ?? [], $signedOn);
+
+            if ($this->failures() > 0) {
+                return null;
+            }
 
             $contract = new OwnerContract;
             $contract->fill([
@@ -78,7 +89,7 @@ class OwnerContractService extends ContractService
                 'type' => $type,
                 'owner_id' => $owner?->id,
                 'signed_on' => $signedOn,
-                'end_on' => isset($data['end_on']) ? $this->date($data['end_on'], 'end_on', 'signed_on_required') : null,
+                'end_on' => $endOn,
                 'note' => $data['note'] ?? null,
             ]);
             $contract->company_id = $companyId;
@@ -147,9 +158,13 @@ class OwnerContractService extends ContractService
     {
         return DB::transaction(function () use ($annex, $property, $from, $amount) {
             $contract = $this->contractOf($annex);
-            $propertyId = $this->propertyId($contract->company_id, $property);
-            $amount = $this->amount($contract->calculation, $amount);
-            $from = $this->addDate($contract, $from);
+            $before = $this->failures();
+            $propertyId = $this->attempt(fn () => $this->propertyId($contract->company_id, $property));
+            $amount = $this->attempt(fn () => $this->amount($contract->calculation, $amount));
+            $from = $this->attempt(fn () => $this->addDate($contract, $from));
+            if ($this->failures() > $before) {
+                throw new SkippedCheck;
+            }
 
             $line = $this->newLine($contract, $propertyId, $from, $amount, $annex);
             $this->ensurePropertyIsFree($contract->company_id, $propertyId, $contract);
@@ -187,54 +202,46 @@ class OwnerContractService extends ContractService
      */
     public function applyAnnex(OwnerContract $contract, array $data): OwnerContractAnnex
     {
-        return DB::transaction(function () use ($contract, $data) {
+        return $this->collecting($data, function () use ($contract, $data) {
             $percent = $data['commission_percent'] ?? null;
             $payee = $data['payee'] ?? null;
             $endOn = $data['end_on'] ?? null;
             $lines = array_values($data['lines'] ?? []);
-            $from = $data['from'] ?? null;
 
             $changesPercent = $percent !== null && $percent !== '';
             $changesTerm = $endOn !== null && $endOn !== '';
 
             if (! $changesPercent && $payee === null && ! $changesTerm && $lines === []) {
-                $this->reject('changes', 'annex_no_changes');
+                $this->attempt(fn () => $this->reject('changes', 'annex_no_changes'));
             }
 
-            $needsFrom = $changesPercent || $payee !== null
-                || collect($lines)->contains(fn ($line) => ($line['from'] ?? '') === '' || ($line['from'] ?? null) === null);
-            if ($needsFrom && ($from === null || $from === '')) {
-                $this->reject('from', 'annex_from_required');
-            }
-
-            $number = $data['number'] ?? null;
-            $annex = $this->addAnnex($contract, $number === null || $number === '' ? $this->nextAnnexNumber($contract) : (int) $number,
-                $data['signed_on'] ?? null, $data['note'] ?? null);
+            $from = $this->annexFrom($lines, $data['from'] ?? null, alsoNeeded: $changesPercent || $payee !== null);
+            $annex = $this->annexForChanges($contract, $data);
 
             if ($changesPercent) {
-                $this->changeCommission($annex, $from, $percent);
+                $this->attempt(fn () => $this->changeCommission($annex, $from, $percent));
             }
 
             if ($payee !== null) {
                 $beneficiaryId = $payee['beneficiary_id'] ?? null;
-                $this->changePayee($annex, $from, $beneficiaryId === null || $beneficiaryId === '' ? null : (int) $beneficiaryId,
-                    $payee['payment_method'] ?? null);
+                $this->attempt(fn () => $this->changePayee($annex, $from,
+                    $beneficiaryId === null || $beneficiaryId === '' ? null : (int) $beneficiaryId, $payee['payment_method'] ?? null));
             }
 
             foreach ($lines as $line) {
                 $lineFrom = ($line['from'] ?? null) ?: $from;
                 $property = (int) ($line['property_id'] ?? 0);
 
-                match ($line['action'] ?? null) {
+                $this->attempt(fn () => match ($line['action'] ?? null) {
                     'amount' => $this->changeFixedAmount($annex, $property, $lineFrom, $line['fixed_amount'] ?? null),
                     'add' => $this->addProperty($annex, $property, $lineFrom, $line['fixed_amount'] ?? null),
                     'remove' => $this->removeProperty($annex, $property, $lineFrom),
                     default => $this->reject('lines', 'line_action_unknown'),
-                };
+                });
             }
 
             if ($changesTerm) {
-                $this->extendTerm($annex, $endOn);
+                $this->attempt(fn () => $this->extendTerm($annex, $endOn));
             }
 
             return $annex->refresh();
@@ -257,36 +264,40 @@ class OwnerContractService extends ContractService
             $this->reject('changes', 'correction_after_charges');
         }
 
-        return DB::transaction(function () use ($contract, $data) {
+        return $this->collecting($data, function () use ($contract, $data) {
             $contract = OwnerContract::query()->withoutGlobalScopes()
                 ->where('company_id', $contract->company_id)->lockForUpdate()->findOrFail($contract->id);
 
             if (array_key_exists('owner_id', $data)) {
-                $this->correctOwner($contract, $data['owner_id']);
+                $this->attempt(fn () => $this->correctOwner($contract, $data['owner_id']));
             }
 
             foreach ($data['lines'] ?? [] as $id => $values) {
-                $this->correctLine($contract, (int) $id, (array) $values);
+                $this->attempt(fn () => $this->correctLine($contract, (int) $id, (array) $values));
             }
 
             foreach ($data['commissions'] ?? [] as $id => $percent) {
-                $version = $contract->commissions()->whereKey($id)->lockForUpdate()->first()
-                    ?? $this->reject('commissions', 'row_not_in_contract');
-                $version->forceFill(['percent' => $this->percent($contract->calculation, $percent)])->save();
+                $this->attempt(function () use ($contract, $id, $percent) {
+                    $version = $contract->commissions()->whereKey($id)->lockForUpdate()->first()
+                        ?? $this->reject('commissions', 'row_not_in_contract');
+                    $version->forceFill(['percent' => $this->percent($contract->calculation, $percent)])->save();
+                });
             }
 
             foreach ($data['payees'] ?? [] as $id => $values) {
-                $version = $contract->payees()->whereKey($id)->lockForUpdate()->first()
-                    ?? $this->reject('payees', 'row_not_in_contract');
-                [$beneficiaryId, $method] = $this->payee($contract->company_id, $contract->calculation,
-                    $values['beneficiary_id'] ?? null, $values['payment_method'] ?? null);
-                $beneficiaryId ??= $this->ownerBeneficiary(
-                    Owner::query()->withoutGlobalScopes()->where('company_id', $contract->company_id)->findOrFail($contract->owner_id)
-                )->id;
-                $version->forceFill(['beneficiary_id' => $beneficiaryId, 'payment_method' => $method])->save();
+                $this->attempt(function () use ($contract, $id, $values) {
+                    $version = $contract->payees()->whereKey($id)->lockForUpdate()->first()
+                        ?? $this->reject('payees', 'row_not_in_contract');
+                    [$beneficiaryId, $method] = $this->payee($contract->company_id, $contract->calculation,
+                        $values['beneficiary_id'] ?? null, $values['payment_method'] ?? null);
+                    $beneficiaryId ??= $this->ownerBeneficiary(
+                        Owner::query()->withoutGlobalScopes()->where('company_id', $contract->company_id)->findOrFail($contract->owner_id)
+                    )->id;
+                    $version->forceFill(['beneficiary_id' => $beneficiaryId, 'payment_method' => $method])->save();
+                });
             }
 
-            $this->alignContractStart($contract);
+            $this->attempt(fn () => $this->alignContractStart($contract));
             $this->ensurePropertiesAreFree($contract);
 
             return $contract->refresh();
@@ -391,7 +402,8 @@ class OwnerContractService extends ContractService
             return $given ? $this->reject('lines', 'amount_not_allowed') : null;
         }
 
-        return $this->money($amount, 'lines', 'amount_required');
+        // 0 е за придружаващ имот, например гараж (PROJECT.md, променено 20.11.2026).
+        return $this->money($amount, 'lines', 'amount_required', allowZero: true);
     }
 
     /** @return array{0: ?int, 1: ?PaymentMethod} */
@@ -420,18 +432,48 @@ class OwnerContractService extends ContractService
         return $exists ? [(int) $beneficiaryId, $method] : $this->reject('beneficiary_id', 'beneficiary_not_found');
     }
 
-    /** @return list<array{property_id: int, start_on: CarbonImmutable, fixed_amount: ?string}> */
-    private function lines(int $companyId, CalculationMethod $calculation, array $lines, CarbonImmutable $signedOn): array
+    /**
+     * Редовете на нов договор: всяко поле на всеки ред се проверява отделно,
+     * а застъпването, щом имотът и датата на реда са верни.
+     *
+     * @return list<array{property_id: int, start_on: CarbonImmutable, fixed_amount: ?string}>
+     */
+    private function lines(int $companyId, CalculationMethod $calculation, array $lines, ?CarbonImmutable $signedOn): array
     {
         if ($lines === []) {
-            $this->reject('lines', 'lines_required');
+            $this->attempt(fn () => $this->reject('lines', 'lines_required'));
         }
 
-        return array_map(fn (array $line) => [
-            'property_id' => $this->propertyId($companyId, $line['property_id'] ?? null),
-            'start_on' => $this->lineStart($line, $signedOn),
-            'fixed_amount' => $this->amount($calculation, $line['fixed_amount'] ?? null),
-        ], array_values($lines));
+        $result = [];
+        $earlier = [];
+
+        foreach (array_values($lines) as $line) {
+            $before = $this->failures();
+            $propertyId = $this->attempt(fn () => $this->propertyId($companyId, $line['property_id'] ?? null));
+            $start = $this->attempt(fn () => $this->lineStart($line, $signedOn));
+            $amount = $this->attempt(fn () => $this->amount($calculation, $line['fixed_amount'] ?? null));
+
+            if ($propertyId !== null && $start !== null) {
+                $this->attempt(fn () => $this->ensureFreeFrom($this->blank($companyId), $companyId, $propertyId, $start, $earlier));
+                $earlier[] = $propertyId;
+            }
+
+            if ($this->failures() === $before) {
+                $result[] = ['property_id' => $propertyId, 'start_on' => $start, 'fixed_amount' => $amount];
+            }
+        }
+
+        return $result;
+    }
+
+    /** Празен договор на фирмата: само за проверките преди записа. */
+    private function blank(int $companyId, array $attributes = []): OwnerContract
+    {
+        $contract = new OwnerContract;
+        $contract->forceFill($attributes);
+        $contract->company_id = $companyId;
+
+        return $contract;
     }
 
     private function newLine(OwnerContract $contract, int $propertyId, CarbonImmutable $from, ?string $amount, ?OwnerContractAnnex $annex = null): OwnerContractLine

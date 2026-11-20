@@ -50,12 +50,12 @@ class LeaseContractDatabaseTest extends ContractTestCase
         ]));
     }
 
-    public function test_rent_is_above_zero_and_deposit_is_not_negative(): void
+    public function test_rent_and_deposit_are_not_negative(): void
     {
         $contract = $this->leaseContract([$this->property()]);
 
         $this->assertDatabaseRefuses('lease_contract_lines_rent_check',
-            fn () => DB::table('lease_contract_lines')->insert($this->lineRow($contract, ['rent' => '0.00'])));
+            fn () => DB::table('lease_contract_lines')->insert($this->lineRow($contract, ['rent' => '-1.00'])));
         $this->assertDatabaseRefuses('lease_contract_lines_deposit_check',
             fn () => DB::table('lease_contract_lines')->insert($this->lineRow($contract, ['deposit' => '-1.00'])));
     }

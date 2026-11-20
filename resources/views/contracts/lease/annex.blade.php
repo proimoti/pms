@@ -20,11 +20,11 @@
             </div>
             <div>
                 <label for="signed_on">{{ __('contracts.screens.fields.annex_signed_on') }} *</label>
-                <input id="signed_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="signed_on" value="{{ \App\Support\BgDate::toInput(old('signed_on')) }}" required>
+                <x-date-input id="signed_on" name="signed_on" required :value="old('signed_on')" />
             </div>
             <div>
                 <label for="from">{{ __('contracts.screens.fields.annex_from') }}</label>
-                <input id="from" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="from" value="{{ \App\Support\BgDate::toInput(old('from')) }}">
+                <x-date-input id="from" name="from" :value="old('from')" />
                 <div class="muted">{{ __('contracts.screens.hints.annex_from') }}</div>
             </div>
         </div>
@@ -59,7 +59,7 @@
             <h2>{{ __('contracts.screens.sections.extensions') }}</h2>
             <label for="end_on">{{ __('contracts.screens.fields.new_end_on') }}
                 <span class="muted">({{ __('contracts.screens.now') }} {{ Format::date($contract->end_on) }})</span></label>
-            <input id="end_on" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="{{ __('registry.date_placeholder') }}" name="end_on" value="{{ \App\Support\BgDate::toInput(old('end_on')) }}" style="max-width: 200px;">
+            <x-date-input id="end_on" name="end_on" style="max-width: 200px;" :value="old('end_on')" />
             <div class="muted">{{ __('contracts.screens.hints.empty_no_change') }}</div>
         @endif
 
@@ -88,4 +88,6 @@
             });
         })();
     </script>
+
+    @include('contracts.partials.quick-new')
 @endsection

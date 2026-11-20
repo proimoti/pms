@@ -74,7 +74,8 @@ class LeaseContractScreensTest extends ScreenTestCase
         $page = $this->get('/lease-contracts/create')->assertOk()
             ->assertSee('Петър Измислен')->assertSee('Добави още имоти')->getContent();
 
-        $this->assertStringNotContainsString('type="date"', $page);
+        // Календарът на браузъра е само зад бутона: поле без име, не се праща.
+        $this->assertDoesNotMatchRegularExpression('/<input[^>]*type="date"[^>]*name=/', $page);
         $this->assertStringContainsString('placeholder="дд.мм.гггг"', $page);
         $this->assertStringContainsString('name="lines[0][rent]"', $page);
         $this->assertStringNotContainsString('name="lines[1][rent]"', $page);
@@ -270,7 +271,7 @@ class LeaseContractScreensTest extends ScreenTestCase
         $this->assertSame(1, $contract->lines()->count());
 
         $this->put("/lease-contracts/{$contract->id}/correct", [
-            'tenant_id' => $tenant->id, 'lines' => [$line->id => ['rent' => '0']],
+            'tenant_id' => $tenant->id, 'lines' => [$line->id => ['rent' => '-1']],
         ])->assertSessionHasErrors('lines');
         $this->assertSame('610.00', $line->fresh()->rent);
     }

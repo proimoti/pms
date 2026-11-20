@@ -98,7 +98,8 @@ class DateInputTest extends ScreenTestCase
         foreach (['/owner-contracts/create', "/owner-contracts/{$contract->id}/edit",
             "/owner-contracts/{$contract->id}/annexes/create", "/owner-contracts/{$contract->id}/correct"] as $url) {
             $page = $this->get($url)->assertOk()->getContent();
-            $this->assertStringNotContainsString('type="date"', $page, $url);
+            // Календарът на браузъра е само зад бутона (PROJECT.md, 20.11.2026): поле без име, не се праща.
+            $this->assertDoesNotMatchRegularExpression('/<input[^>]*type="date"[^>]*name=/', $page, $url);
             $this->assertStringContainsString('placeholder="дд.мм.гггг"', $page, $url);
         }
 

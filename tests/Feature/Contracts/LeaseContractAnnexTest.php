@@ -53,7 +53,7 @@ class LeaseContractAnnexTest extends ContractTestCase
         $contract = $this->leaseContract([$property]);
         $annex = $this->leases->addAnnex($contract, 1, '2026-05-20');
 
-        $this->assertRejected(fn () => $this->leases->changeRent($annex, $property, '2026-06-01', '0'), 'lines');
+        $this->assertRejected(fn () => $this->leases->changeRent($annex, $property, '2026-06-01', '-1'), 'lines');
         $this->assertRejected(fn () => $this->leases->changeDeposit($annex, $property, '2026-06-01', '-1'), 'lines');
         $this->assertSame(1, LeaseContractLine::query()->count());
     }

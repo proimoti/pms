@@ -54,7 +54,7 @@ class OwnerContract extends Model
         });
     }
 
-    private function ensureOwnerKindFitsType(): void
+    public function ensureOwnerKindFitsType(): void
     {
         $required = $this->type->requiredOwnerKind();
         if ($required === null || $this->owner_id === null) {
