@@ -70,6 +70,63 @@ class ChargeCalculator
     }
 
     /**
+     * Свободните имоти за месеца (PROJECT.md, „Начисления, съдържание“, 21.11.2026):
+     * имоти с действащ договор за управление (и „Собствен“), без наемател за
+     * целия месец или за част от него. При фиксиран договор и дължимото към
+     * собственика за свободните дни. Първо изцяло свободните, после по № на имот.
+     *
+     * @return list<Vacancy>
+     */
+    public function vacancies(int $companyId, string $month): array
+    {
+        if (! preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $month, $m)) {
+            throw new InvalidArgumentException("Месецът трябва да е във вида гггг-мм: {$month}");
+        }
+
+        $start = CarbonImmutable::create((int) $m[1], (int) $m[2], 1)->startOfDay();
+        $end = $start->addMonth();
+        $daysInMonth = $start->daysInMonth;
+
+        $leaseDays = $this->leaseDays($companyId, $start, $end);
+        $vacancies = [];
+
+        foreach ($this->managementDays($companyId, $start, $end) as $propertyId => $days) {
+            $byContract = [];
+            foreach ($days as $day => $row) {
+                $byContract[$row['contract']][$day] = $row;
+            }
+
+            foreach ($byContract as $contractId => $contractDays) {
+                $free = array_diff_key($contractDays, $leaseDays[$propertyId] ?? []);
+                if ($free === []) {
+                    continue;
+                }
+
+                $row = reset($contractDays);
+                $vacancies[] = new Vacancy(
+                    propertyId: $propertyId,
+                    ownerContractId: $contractId,
+                    ownerId: $row['owner'],
+                    calculation: $row['calculation'],
+                    freeDays: count($free),
+                    firstDay: min(array_keys($free)),
+                    lastDay: max(array_keys($free)),
+                    wholeMonth: ($leaseDays[$propertyId] ?? []) === [],
+                    ownerAmount: $row['calculation'] === CalculationMethod::Fixed->value
+                        ? Cents::format(Cents::divide(array_sum(array_map(fn ($day) => $day['fixed'], $free)), $daysInMonth))
+                        : null,
+                );
+            }
+        }
+
+        $numbers = DB::table('properties')->where('company_id', $companyId)->pluck('number', 'id');
+        usort($vacancies, fn (Vacancy $a, Vacancy $b) => [! $a->wholeMonth, $numbers[$a->propertyId] ?? 0]
+            <=> [! $b->wholeMonth, $numbers[$b->propertyId] ?? 0]);
+
+        return $vacancies;
+    }
+
+    /**
      * Един имот за месеца.
      *
      * @param  array<int, array>  $lease  ден (0…) → договор за наем, наемател, наем

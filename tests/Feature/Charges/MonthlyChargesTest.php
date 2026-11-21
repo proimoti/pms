@@ -377,6 +377,46 @@ class MonthlyChargesTest extends ContractTestCase
         $this->assertSame($before, AuditLog::query()->withoutGlobalScopes()->count());
     }
 
+    // Свободни имоти (PROJECT.md, „Начисления, съдържание“, 21.11.2026)
+
+    public function test_free_properties_with_a_management_contract(): void
+    {
+        $fixed = $this->property();
+        $this->fixedContract([$fixed]);                       // свободен целия месец
+        $partly = $this->property();
+        $this->percentContract([$partly]);
+        $this->lease($partly, '2026-12-17', '600');           // свободен 16 дни
+        $own = $this->property();
+        $this->ownContract($own);                             // собствен, свободен
+        $rented = $this->property();
+        $this->percentContract([$rented]);
+        $this->lease($rented, '2026-02-01', '600');           // нает целия месец: не е свободен
+        $this->property();                                    // без договор за управление: не е тук
+
+        $free = app(ChargeCalculator::class)->vacancies($this->staff->company_id, '2026-12');
+
+        $this->assertSame([$fixed->id, $own->id, $partly->id], array_map(fn ($v) => $v->propertyId, $free));
+        $this->assertSame([31, 31, 16], array_map(fn ($v) => $v->freeDays, $free));
+        $this->assertSame([true, true, false], array_map(fn ($v) => $v->wholeMonth, $free));
+        $this->assertSame('460.00', $free[0]->ownerAmount);   // фиксирана сума за свободните дни
+        $this->assertNull($free[1]->ownerAmount);             // собствен: нищо към собственик
+        $this->assertNull($free[2]->ownerAmount);             // процент: нищо за свободните дни
+        $this->assertSame('own', $free[1]->calculation);
+    }
+
+    public function test_fixed_amount_for_free_days_only(): void
+    {
+        $property = $this->property();
+        $this->fixedContract([$property]);
+        $this->lease($property, '2026-12-11', '500');         // свободен 10 дни
+
+        $free = app(ChargeCalculator::class)->vacancies($this->staff->company_id, '2026-12');
+
+        $this->assertCount(1, $free);
+        $this->assertSame(10, $free[0]->freeDays);
+        $this->assertSame('148.39', $free[0]->ownerAmount);   // 460 × 10 ÷ 31
+    }
+
     public function test_month_must_be_year_and_month(): void
     {
         $this->expectException(\InvalidArgumentException::class);

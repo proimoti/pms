@@ -12,7 +12,10 @@ use App\Models\OwnerContract;
 use App\Models\PeriodLock;
 use App\Models\Statement;
 use App\Models\Property;
+use App\Models\Scopes\CompanyScope;
 use App\Services\Charges\Cents;
+use App\Services\Charges\ChargeCalculator;
+use App\Services\Charges\Vacancy;
 use App\Services\Charges\MonthWorksheet;
 use App\Services\Charges\Month;
 use App\Services\Charges\Reconciliation;
@@ -69,6 +72,12 @@ class ChargeWorksheetController extends Controller
             'rentByProperty' => $active->where('type', ChargeType::Rent)->groupBy('property_id')
                 ->map(fn ($rows) => Cents::format($rows->sum(fn ($row) => Cents::from($row->amount)))),
             'forDecision' => $this->forDecision($key),
+            'vacancies' => $this->vacancies($key),
+            // Разбивка на сумата към наемателите по видове, само ненулевите (PROJECT.md, „Начисления, съдържание“).
+            'breakdown' => collect([ChargeType::Rent, ChargeType::Utility, ChargeType::Deposit, ChargeType::Penalty, ChargeType::Other])
+                ->mapWithKeys(fn (ChargeType $type) => [$type->value => $active->where('type', $type)->sum(fn ($row) => Cents::from($row->amount))])
+                ->filter(fn (int $cents) => $cents !== 0)
+                ->map(fn (int $cents) => Cents::format($cents)),
             'totals' => [
                 'tenants' => Cents::format($active->filter(fn ($row) => $row->type->forTenant())->sum(fn ($row) => Cents::from($row->amount))),
                 'owners' => Cents::format($owner($active)),
@@ -196,6 +205,21 @@ class ChargeWorksheetController extends Controller
     }
 
     /** „За решение“ с наемателя и имота за показване. */
+    /** Свободните имоти за месеца, за видимите имоти, с имота и договора за управление за показване. */
+    private function vacancies(string $key): Collection
+    {
+        $visible = Property::query()->get()->keyBy('id');
+        $companyId = CompanyScope::restrictedCompanyId() ?? 0;
+
+        return collect(app(ChargeCalculator::class)->vacancies($companyId, $key))
+            ->filter(fn (Vacancy $vacancy) => $visible->has($vacancy->propertyId))
+            ->map(fn (Vacancy $vacancy) => [
+                'item' => $vacancy,
+                'property' => $visible[$vacancy->propertyId],
+                'management' => OwnerContract::query()->with('owner')->find($vacancy->ownerContractId),
+            ])->values();
+    }
+
     private function forDecision(string $key): Collection
     {
         return collect($this->sheet->forDecision($key))->map(fn ($item) => [

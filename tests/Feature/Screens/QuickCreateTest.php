@@ -68,11 +68,11 @@ class QuickCreateTest extends ScreenTestCase
 
         foreach (['properties', 'owners', 'tenants'] as $section) {
             $this->get("/{$section}/create?popup=1")->assertOk()
-                ->assertDontSee('<nav class="top"', false)
+                ->assertDontSee('<nav class="side"', false)
                 ->assertSee('<input type="hidden" name="popup" value="1">', false);
         }
 
-        $this->get('/properties/create')->assertOk()->assertSee('<nav class="top"', false)
+        $this->get('/properties/create')->assertOk()->assertSee('<nav class="side"', false)
             ->assertDontSee('name="popup"', false);
     }
 
@@ -116,7 +116,7 @@ class QuickCreateTest extends ScreenTestCase
         $this->record(Owner::class, ['name' => 'Иван Измислен']);
         $this->from('/owners/create?popup=1')->post('/owners', ['popup' => '1', 'kind' => 'individual', 'name' => 'Иван Измислен', 'country' => 'BG'])
             ->assertRedirect('/owners/create?popup=1');
-        $this->get('/owners/create?popup=1')->assertDontSee('<nav class="top"', false);
+        $this->get('/owners/create?popup=1')->assertDontSee('<nav class="side"', false);
         $this->assertSame(1, Owner::query()->count());
     }
 

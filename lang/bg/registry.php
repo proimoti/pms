@@ -31,6 +31,7 @@ return [
         'lease-contracts' => 'Договори за наем',
         'charges' => 'Начисления',
         'statements' => 'Известия',
+        'upcoming-charges' => 'Предстоящи',
     ],
     'new' => [
         'properties' => 'Нов имот',
@@ -53,6 +54,17 @@ return [
 
     // Действия и надписи
     'menu' => 'Начало',
+    // Страничното меню: групи и разделите в тях (21.11.2026).
+    'menu_groups' => [
+        'registry' => 'Регистър',
+        'contracts' => 'Договори',
+        'charges' => 'Начисления',
+    ],
+    'menu_items' => [
+        'registry' => ['properties', 'owners', 'beneficiaries', 'tenants', 'brokers'],
+        'contracts' => ['owner-contracts', 'lease-contracts'],
+        'charges' => ['charges', 'upcoming-charges', 'statements'],
+    ],
     'search' => 'Търсене',
     'search_button' => 'Търси',
     'show_active' => 'Активни',

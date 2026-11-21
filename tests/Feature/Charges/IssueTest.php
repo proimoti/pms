@@ -141,6 +141,27 @@ class IssueTest extends ContractTestCase
         $this->assertSame([], $this->reconciliation->differences('2026-12'));
     }
 
+    /**
+     * PROJECT.md, „Начисления, уточнения“: изтекъл срок (дата край) без дата на
+     * прекратяване не е „без договор за управление“ — договорът продължава да
+     * действа, наемът се начислява нормално и делът на собственика се записва.
+     */
+    public function test_management_contract_with_expired_term_but_no_termination_still_applies(): void
+    {
+        $property = $this->property();
+        $management = $this->percentContract([$property], ['end_on' => '2026-06-30']);
+        $lease = $this->leaseContract([$property]);
+        $this->assertNull($management->fresh()->terminated_on);
+
+        $this->assertSame([], app(\App\Services\Charges\ChargeCalculator::class)->forMonth($this->staff->company_id, '2026-12')->forDecision());
+        $this->sheet->generate('2026-12');
+        $this->issuer->issueMonth('2026-12');
+
+        $this->assertSame('600.00', $this->sum(['account' => LedgerAccount::Tenant, 'lease_contract_id' => $lease->id]));
+        $this->assertSame('540.00', $this->sum(['account' => LedgerAccount::Owner, 'owner_contract_id' => $management->id]));
+        $this->assertSame(1, Statement::query()->count());
+    }
+
     public function test_numbers_continue_across_months(): void
     {
         $this->rented();

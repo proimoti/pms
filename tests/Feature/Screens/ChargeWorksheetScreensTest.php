@@ -77,7 +77,7 @@ class ChargeWorksheetScreensTest extends ScreenTestCase
         $this->get('/charges?month=2026-12')->assertOk()
             ->assertSee(__('charges.screens.generate_again'))
             ->assertSee('Петър Измислен')
-            ->assertSee(__('registry.one.lease-contracts').' № '.$lease->number)
+            ->assertSee(__('registry.one.lease-contracts').' <strong>№ '.$lease->number.'</strong>', false)
             ->assertSee('№ '.$property->number)
             ->assertSee('600,00')
             ->assertSee('Георги Измислен')
@@ -165,7 +165,7 @@ class ChargeWorksheetScreensTest extends ScreenTestCase
 
         // Приход: 600 − 540 + 50 + 15 = 125; към наемателите: 600 + 50 + 15 + 1200 = 1 865.
         $this->get('/charges?month=2026-12')->assertOk()
-            ->assertSee('<dd >125,00 €</dd>', false)
+            ->assertSee('<div class="value">125,00 €</div>', false)
             ->assertSee('1 865,00');
     }
 
