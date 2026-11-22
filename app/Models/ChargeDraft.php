@@ -35,12 +35,30 @@ class ChargeDraft extends Model
             'edited_proposed_amount' => 'decimal:2',
             'edited_at' => 'immutable_datetime',
             'removed_at' => 'immutable_datetime',
+            'period_from' => 'immutable_date',
+            'period_to' => 'immutable_date',
         ];
     }
 
     public function isManual(): bool
     {
         return $this->source === ChargeSource::Manual || $this->edited_at !== null || $this->removed_at !== null;
+    }
+
+    /** Битова сметка или фиксирана сума (от абонат). */
+    public function isUtility(): bool
+    {
+        return in_array($this->type, [ChargeType::Utility, ChargeType::FixedFee], true);
+    }
+
+    public function paidUtilityBill(): BelongsTo
+    {
+        return $this->belongsTo(PaidUtilityBill::class);
+    }
+
+    public function utilityAccount(): BelongsTo
+    {
+        return $this->belongsTo(UtilityAccount::class);
     }
 
     public function leaseContract(): BelongsTo

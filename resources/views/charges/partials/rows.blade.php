@@ -33,6 +33,9 @@
                     @endif
                 </td>
                 <td>
+                    @if ($row->isUtility())
+                        @include('charges.partials.utility-label', ['row' => $row])
+                    @endif
                     {{ $row->note }}
                     @if ($row->removed_at)
                         <div><strong>{{ __('charges.screens.removed') }}:</strong> {{ $row->remove_reason }}</div>

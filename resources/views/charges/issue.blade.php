@@ -27,28 +27,22 @@
     </dl>
 
     <h2>{{ __('charges.screens.to_tenants') }}</h2>
-    <div class="table-wrap">
-        <table>
-            <thead>
-            <tr>
-                <th>{{ __('charges.fields.lease_contract') }}</th>
-                <th>{{ __('charges.fields.tenant') }}</th>
-                <th class="num">{{ __('charges.statements.total') }}</th>
-            </tr>
-            </thead>
-            <tbody>
-            @forelse ($tenants as $rows)
-                <tr>
-                    <td>№ {{ $rows->first()->leaseContract?->number }}</td>
-                    <td>{{ $rows->first()->tenant?->name }}</td>
-                    <td class="num">{{ Format::money(Cents::format($rows->sum(fn ($row) => Cents::from($row->amount)))) }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="3" class="muted">{{ __('charges.screens.none') }}</td></tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
+    {{-- По един ред за всяко известие; разгъва се до редовете, както ще излязат в известието. --}}
+    @if ($tenants->isEmpty())
+        <p class="muted">{{ __('charges.screens.none') }}</p>
+    @else
+        <div class="accordion-list">
+            @foreach ($tenants as $rows)
+                <x-accordion :anchor="'notice-'.$rows->first()->lease_contract_id">
+                    <x-slot:title>{{ $rows->first()->tenant?->name }}</x-slot:title>
+                    <x-slot:sub>{{ __('registry.one.lease-contracts') }} <strong>№ {{ $rows->first()->leaseContract?->number }}</strong></x-slot:sub>
+                    <x-slot:amount>{{ Format::money(Cents::format($rows->sum(fn ($row) => Cents::from($row->amount)))) }} €</x-slot:amount>
+
+                    @include('charges.partials.notice-lines', ['rows' => $rows])
+                </x-accordion>
+            @endforeach
+        </div>
+    @endif
 
     @if ($issued->isNotEmpty())
         <h2>{{ __('charges.issue.already_issued') }}</h2>

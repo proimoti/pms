@@ -167,6 +167,7 @@
                         {{ __('registry.one.lease-contracts') }} <strong>№ {{ $lease->number }}</strong>
                         · {{ __('charges.fields.property') }} {{ $rows->pluck('property.number')->unique()->map(fn ($n) => '№ '.$n)->implode(', ') }}
                         @if ($terminated) · {{ __('charges.screens.terminated_on', ['date' => Format::date($lease->terminated_on)]) }} @endif
+                        @if ($active->isNotEmpty() && $active->every(fn ($row) => $row->isUtility())) · {{ __('charges.screens.only_utilities') }} @endif
                     </x-slot:sub>
                     @if ($notes->isNotEmpty())
                         <x-slot:note>{{ $notes->first() }}@if ($notes->count() > 1) (+{{ $notes->count() - 1 }})@endif</x-slot:note>
@@ -207,6 +208,39 @@
                     <p class="muted" style="margin: 8px 0 0;"><a href="/owner-contracts/{{ $management->id }}">{{ __('charges.screens.open_contract') }}</a></p>
                 </x-accordion>
             @endforeach
+        </div>
+    @endif
+
+    @if ($utilitiesForDecision !== [])
+        <div class="panel" id="utilities-for-decision">
+            <h2 style="margin-top: 0;">{{ __('charges.screens.utilities_for_decision') }}</h2>
+            <p class="muted">{{ __('charges.screens.utilities_for_decision_hint') }}</p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>{{ __('charges.fields.property') }}</th>
+                        <th>{{ __('charges.screens.utility_account') }}</th>
+                        <th>{{ __('charges.screens.utility_reason') }}</th>
+                        <th class="num">{{ __('charges.fields.amount') }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach ($utilitiesForDecision as $entry)
+                        @php($account = $entry['bill']->account)
+                        <tr>
+                            <td><a href="/properties/{{ $entry['split']->propertyId }}">№ {{ $names['properties'][$entry['split']->propertyId] ?? '?' }}</a></td>
+                            <td>
+                                <a href="/utility-accounts/{{ $account?->id }}">{{ __('utilities.kinds.'.$account?->kind?->value) }} · {{ $account?->provider?->name }} · № {{ $account?->number }}</a>
+                                <div class="muted">{{ __('charges.screens.utility_period', ['from' => $entry['split']->from->format('d.m'), 'to' => $entry['split']->to->format('d.m.Y')]) }}</div>
+                            </td>
+                            <td>{{ __('charges.utility_reasons.'.$entry['split']->reason) }}</td>
+                            <td class="num">{{ Format::money($entry['split']->forDecision) }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     @endif
 

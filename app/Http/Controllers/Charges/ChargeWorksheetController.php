@@ -72,9 +72,10 @@ class ChargeWorksheetController extends Controller
             'rentByProperty' => $active->where('type', ChargeType::Rent)->groupBy('property_id')
                 ->map(fn ($rows) => Cents::format($rows->sum(fn ($row) => Cents::from($row->amount)))),
             'forDecision' => $this->forDecision($key),
+            'utilitiesForDecision' => $this->sheet->utilitiesForDecision($key),
             'vacancies' => $this->vacancies($key),
             // Разбивка на сумата към наемателите по видове, само ненулевите (PROJECT.md, „Начисления, съдържание“).
-            'breakdown' => collect([ChargeType::Rent, ChargeType::Utility, ChargeType::Deposit, ChargeType::Penalty, ChargeType::Other])
+            'breakdown' => collect([ChargeType::Rent, ChargeType::Utility, ChargeType::FixedFee, ChargeType::Deposit, ChargeType::Penalty, ChargeType::Other])
                 ->mapWithKeys(fn (ChargeType $type) => [$type->value => $active->where('type', $type)->sum(fn ($row) => Cents::from($row->amount))])
                 ->filter(fn (int $cents) => $cents !== 0)
                 ->map(fn (int $cents) => Cents::format($cents)),

@@ -12,6 +12,7 @@ use App\Models\PeriodLock;
 use App\Models\Property;
 use App\Models\Scopes\CompanyScope;
 use App\Models\UpcomingCharge;
+use App\Services\Utilities\UtilityMonth;
 use App\Support\Format;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -29,6 +30,10 @@ use LogicException;
  * ако пресметнатото се е сменило); ръчно махнатите се помнят и не се връщат;
  * предстоящите начисления на месеца влизат. Всяка ръчна промяна или махане
  * иска причина. Книгата не се пипа (тя идва с част 3).
+ *
+ * Битовите сметки (PROJECT.md, „Битови сметки в месеца“, 22.11.2026): платените,
+ * неначислени сметки (всяка по своя период) и фиксираните абонати за предходния
+ * месец са пресметнати редове като наема; сметките „за решение“ не са редове.
  */
 class MonthWorksheet
 {
@@ -46,11 +51,14 @@ class MonthWorksheet
 
     public const UPCOMING_INACTIVE = 'upcoming_inactive';
 
+    public const NEW_UTILITY_BILLS = 'new_utility_bills';
+
     public function __construct(
         private readonly ChargeCalculator $calculator,
         private readonly UpcomingChargeService $upcoming,
         private readonly Issuer $issuer,
         private readonly Reconciliation $reconciliation,
+        private readonly UtilityMonth $utilities,
     ) {}
 
     /** Издаден месец не се променя (PROJECT.md, „Издаване и заключване“): само корекции. */
@@ -82,6 +90,7 @@ class MonthWorksheet
                 fn (ProposedCharge $charge) => $charge->type === ProposedCharge::RENT && ! in_array($charge->leaseContractId, $issued, true));
             $this->applyComputed($start, $rows->where('source', ChargeSource::Computed)->where('type', ChargeType::Rent), $rents);
             $this->applyUpcoming($start, $rows->where('source', ChargeSource::Upcoming), $issued);
+            $this->applyUtilities($start, $rows->where('source', ChargeSource::Computed)->filter(fn (ChargeDraft $row) => $row->isUtility()), $issued);
             $this->refreshOwners($start);
 
             $stamp->forceFill(['month' => $start, 'generated_at' => now(), 'generated_by' => Auth::id()])->save();
@@ -132,7 +141,7 @@ class MonthWorksheet
     public function rows(string $month): Collection
     {
         return $this->rowsQuery(Month::parse($month))
-            ->with(['leaseContract', 'ownerContract', 'property', 'tenant', 'owner'])
+            ->with(['leaseContract', 'ownerContract', 'property', 'tenant', 'owner', 'paidUtilityBill', 'utilityAccount.provider'])
             ->get();
     }
 
@@ -307,6 +316,13 @@ class MonthWorksheet
             ]), null, $item->leaseContractId, $item->propertyId);
         }
 
+        if (! PeriodLock::isLocked($start) && ChargeMonth::query()->whereDate('month', $start)->exists()) {
+            $new = $this->utilities->notInWorksheet($this->companyId(), $start);
+            if ($new > 0) {
+                $warnings[] = new WorksheetWarning(self::NEW_UTILITY_BILLS, trans_choice('charges.warnings.new_utility_bills', $new, ['count' => $new]));
+            }
+        }
+
         return array_merge($warnings, $this->depositWarnings($start), $this->upcomingWarnings($start),
             $this->issuer->warnings(Month::key($start)), $this->reconciliation->warnings(Month::key($start)));
     }
@@ -422,6 +438,63 @@ class MonthWorksheet
                 $this->drop($row);
             }
         }
+    }
+
+    /**
+     * Битовите редове: по един за всеки наемател, сметка (или фиксиран абонат) и
+     * имот. Като пресметнатите редове: ръчно променените и махнатите се пазят.
+     */
+    private function applyUtilities(CarbonImmutable $start, Collection $existing, array $issued): void
+    {
+        $key = fn (string $type, int $lease, ?int $bill, int $account, int $property) => implode('|', [$type, $lease, $bill ?? 0, $account, $property]);
+        $byKey = $existing->keyBy(fn (ChargeDraft $row) => $key($row->type->value, $row->lease_contract_id, $row->paid_utility_bill_id, $row->utility_account_id, $row->property_id));
+        $seen = [];
+
+        foreach ($this->utilities->proposals($this->companyId(), $start)['rows'] as $proposal) {
+            if (in_array($proposal['lease'], $issued, true)) {
+                continue;
+            }
+            $k = $key($proposal['type']->value, $proposal['lease'], $proposal['bill'], $proposal['account'], $proposal['property']);
+            $seen[$k] = true;
+
+            $row = $byKey->get($k) ?? (new ChargeDraft)->forceFill([
+                'month' => $start, 'type' => $proposal['type'], 'source' => ChargeSource::Computed,
+                'lease_contract_id' => $proposal['lease'], 'property_id' => $proposal['property'],
+                'paid_utility_bill_id' => $proposal['bill'], 'utility_account_id' => $proposal['account'],
+            ]);
+
+            $row->forceFill([
+                'tenant_id' => $proposal['tenant'],
+                'days' => $proposal['days'],
+                'period_from' => $proposal['from'],
+                'period_to' => $proposal['to'],
+                'proposed_amount' => $proposal['amount'],
+            ]);
+            if ($this->untouched($row)) {
+                $row->amount = $proposal['amount'];
+            }
+            $row->save();
+        }
+
+        foreach ($byKey as $k => $row) {
+            if (! isset($seen[$k])) {
+                $this->drop($row);
+            }
+        }
+    }
+
+    /**
+     * Битовите сметки „за решение“ (празен имот през целия период или само
+     * напуснал наемател след срока), за видимите имоти. Не спират издаването.
+     *
+     * @return list<array{bill: \App\Models\PaidUtilityBill, split: \App\Services\Utilities\UtilitySplit}>
+     */
+    public function utilitiesForDecision(string $month): array
+    {
+        $visible = Property::query()->pluck('id')->flip();
+
+        return array_values(array_filter($this->utilities->proposals($this->companyId(), Month::parse($month))['forDecision'],
+            fn (array $item) => $visible->has($item['split']->propertyId)));
     }
 
     /** Предстоящите начисления на месеца (без отказаните). */

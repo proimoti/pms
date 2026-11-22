@@ -85,6 +85,7 @@ class Issuer
             }
 
             $rows = $this->drafts($start)->lockForUpdate()->get();
+            $this->ensureNoUtilities($rows);
             $issued = $this->reconciliation->issuedLeases($start);
             $statements = collect();
 
@@ -185,6 +186,7 @@ class Issuer
             }
 
             $preview = $this->previewNow($lease, Month::key($start));
+            $this->ensureNoUtilities($preview['drafts']);
             if ($preview['rows'] === []) {
                 $this->reject('nothing_to_issue');
             }
@@ -284,6 +286,17 @@ class Issuer
     {
         return ChargeDraft::query()->withoutGlobalScope(RegistryVisibilityScope::class)
             ->whereDate('month', $start)->whereNull('removed_at')->orderBy('id');
+    }
+
+    /**
+     * Временно, до част 4б (издаване и книга за битовите сметки): месец или
+     * договор с битови редове още не се издава, за да няма 418 без 407.
+     */
+    private function ensureNoUtilities(Collection $rows): void
+    {
+        if ($rows->contains(fn (ChargeDraft $row) => $row->isUtility())) {
+            $this->reject('utilities_next_step');
+        }
     }
 
     private function reject(string $message): never
