@@ -32,6 +32,8 @@ return [
         'charges' => 'Начисления',
         'statements' => 'Известия',
         'upcoming-charges' => 'Предстоящи',
+        'providers' => 'Доставчици',
+        'utility-accounts' => 'Абонати',
     ],
     'new' => [
         'properties' => 'Нов имот',
@@ -41,6 +43,8 @@ return [
         'brokers' => 'Ново отговорно лице',
         'owner-contracts' => 'Нов договор за управление',
         'lease-contracts' => 'Нов договор за наем',
+        'providers' => 'Нов доставчик',
+        'utility-accounts' => 'Нов абонат',
     ],
     'one' => [
         'properties' => 'Имот',
@@ -50,6 +54,8 @@ return [
         'brokers' => 'Отговорно лице',
         'owner-contracts' => 'Договор за управление',
         'lease-contracts' => 'Договор за наем',
+        'providers' => 'Доставчик',
+        'utility-accounts' => 'Абонат',
     ],
 
     // Действия и надписи
@@ -59,11 +65,13 @@ return [
         'registry' => 'Регистър',
         'contracts' => 'Договори',
         'charges' => 'Начисления',
+        'utilities' => 'Битови сметки',
     ],
     'menu_items' => [
         'registry' => ['properties', 'owners', 'beneficiaries', 'tenants', 'brokers'],
         'contracts' => ['owner-contracts', 'lease-contracts'],
         'charges' => ['charges', 'upcoming-charges', 'statements'],
+        'utilities' => ['utility-accounts', 'providers'],
     ],
     'search' => 'Търсене',
     'search_button' => 'Търси',

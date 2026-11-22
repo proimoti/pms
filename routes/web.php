@@ -11,6 +11,8 @@ use App\Http\Controllers\Registry\BeneficiaryController;
 use App\Http\Controllers\Registry\BrokerController;
 use App\Http\Controllers\Registry\OwnerController;
 use App\Http\Controllers\Registry\PropertyController;
+use App\Http\Controllers\Registry\ProviderController;
+use App\Http\Controllers\Registry\UtilityAccountController;
 use App\Http\Controllers\Registry\TenantController;
 use App\Http\Middleware\EnsureRegistryAccess;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +39,7 @@ Route::middleware('auth')->group(function () {
             'beneficiaries' => BeneficiaryController::class,
             'tenants' => TenantController::class,
             'brokers' => BrokerController::class,
+            'providers' => ProviderController::class,
         ];
 
         foreach ($sections as $section => $controller) {
@@ -53,8 +56,18 @@ Route::middleware('auth')->group(function () {
             Route::post("{$section}/{{$parameter}}/restore", [$controller, 'restore'])->middleware($write)->name("{$section}.restore");
         }
 
-        // Договори за управление (PROJECT.md, т. 2 „Договори“, „Поправки“).
+        // Абонати на битовите услуги (PROJECT.md, т. 3.4, 21.11.2026).
         $write = EnsureRegistryAccess::class.':write';
+        Route::get('utility-accounts', [UtilityAccountController::class, 'index'])->name('utility-accounts.index');
+        Route::get('utility-accounts/create', [UtilityAccountController::class, 'create'])->middleware($write)->name('utility-accounts.create');
+        Route::post('utility-accounts', [UtilityAccountController::class, 'store'])->middleware($write)->name('utility-accounts.store');
+        Route::get('utility-accounts/{account}', [UtilityAccountController::class, 'show'])->name('utility-accounts.show');
+        Route::get('utility-accounts/{account}/edit', [UtilityAccountController::class, 'edit'])->middleware($write)->name('utility-accounts.edit');
+        Route::put('utility-accounts/{account}', [UtilityAccountController::class, 'update'])->middleware($write)->name('utility-accounts.update');
+        Route::post('utility-accounts/{account}/archive', [UtilityAccountController::class, 'archive'])->middleware($write)->name('utility-accounts.archive');
+        Route::post('utility-accounts/{account}/restore', [UtilityAccountController::class, 'restore'])->middleware($write)->name('utility-accounts.restore');
+
+        // Договори за управление (PROJECT.md, т. 2 „Договори“, „Поправки“).
         Route::get('owner-contracts', [OwnerContractController::class, 'index'])->name('owner-contracts.index');
         Route::get('owner-contracts/create', [OwnerContractController::class, 'create'])->middleware($write)->name('owner-contracts.create');
         Route::post('owner-contracts', [OwnerContractController::class, 'store'])->middleware($write)->name('owner-contracts.store');
