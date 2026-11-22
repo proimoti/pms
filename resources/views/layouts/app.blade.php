@@ -137,6 +137,7 @@
         @foreach (__('registry.menu_groups') as $group => $title)
             <div class="group">{{ $title }}</div>
             @foreach (__('registry.menu_items.'.$group) as $section)
+                @continue(in_array($section, __('registry.menu_manage_only'), true) && ! \App\Models\Concerns\WorksheetRules::canManage(auth()->user()))
                 <a class="item" href="/{{ $section }}" @if (request()->is($section, $section.'/*')) aria-current="page" @endif>{{ __('registry.sections.'.$section) }}</a>
             @endforeach
         @endforeach

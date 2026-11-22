@@ -244,18 +244,29 @@ class UtilityAccountTest extends ContractTestCase
     {
         [$a, $b, $c] = [$this->property(), $this->property(), $this->property()];
 
+        // Сборът е точно 100 % (решено 22.11.2026), със запетая или точка.
         $account = $this->accounts->create($this->data([
-            ['property_id' => $a->id, 'share' => '33'],
-            ['property_id' => $b->id, 'share' => '33,00'],
-            ['property_id' => $c->id, 'share' => '33.00'],
+            ['property_id' => $a->id, 'share' => '33,33'],
+            ['property_id' => $b->id, 'share' => '33.33'],
+            ['property_id' => $c->id, 'share' => '33,34'],
         ]));
 
-        // Сборът е 99%: остатъкът отива към последния имот автоматично (при вноса).
         $this->assertSame(
-            [[$a->id, '33.00', 1], [$b->id, '33.00', 2], [$c->id, '33.00', 3]],
+            [[$a->id, '33.33', 1], [$b->id, '33.33', 2], [$c->id, '33.34', 3]],
             $account->properties()->get()->map(fn ($p) => [$p->property_id, $p->share, $p->position])->all(),
         );
         $this->assertSame($c->id, $account->remainderPropertyId(), 'остатъкът е към последния имот');
+    }
+
+    public function test_shares_under_100_are_rejected(): void
+    {
+        // 33/33/33 = 99 %: вече не се приема, сборът трябва да е точно 100 %.
+        foreach ([['33', '33', '33'], ['33.33', '33.33', '33.33'], ['50', '49.99']] as $shares) {
+            $errors = $this->errorsOf(fn () => $this->accounts->create($this->data(
+                array_map(fn ($share) => ['property_id' => $this->property()->id, 'share' => $share], $shares),
+            )));
+            $this->assertSame([__('utilities.errors.shares_total', ['total' => \App\Support\Format::money((string) array_sum($shares))])], $errors['properties'] ?? null, implode('/', $shares));
+        }
     }
 
     public function test_shares_over_100_are_rejected(): void

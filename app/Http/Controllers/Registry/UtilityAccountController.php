@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Registry;
 use App\Models\Property;
 use App\Models\Provider;
 use App\Models\UtilityAccount;
+use App\Models\Concerns\WorksheetRules;
 use App\Services\Utilities\UtilityAccountService;
+use App\Services\Utilities\UtilityImporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +19,10 @@ class UtilityAccountController extends RegistryController
     /** Празни редове за имоти в новата форма. */
     private const NEW_ROWS = 3;
 
-    public function __construct(private readonly UtilityAccountService $accounts) {}
+    public function __construct(
+        private readonly UtilityAccountService $accounts,
+        private readonly UtilityImporter $importer,
+    ) {}
 
     protected function section(): string
     {
@@ -42,16 +47,27 @@ class UtilityAccountController extends RegistryController
         return view('registry.utility-accounts.index', ['accounts' => $this->paginate($query)]);
     }
 
-    public function create(): View
+    /** От „за решение“ (вноса): доставчикът и номерът идват попълнени. */
+    public function create(Request $request): View
     {
-        return $this->form(new UtilityAccount(['period_start_day' => 1]), []);
+        return $this->form(new UtilityAccount([
+            'period_start_day' => 1,
+            'provider_id' => $request->query('provider_id'),
+            'number' => is_string($request->query('number')) ? $request->query('number') : null,
+        ]), []);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $account = $this->accounts->create($this->input($request));
+        $status = __('registry.saved');
 
-        return redirect("/utility-accounts/{$account->id}")->with('status', __('registry.saved'));
+        // Редовете „за решение“ с този номер се внасят веднага (PROJECT.md, т. 5.3).
+        if (WorksheetRules::canManage($request->user()) && ($count = $this->importer->retryOpen()) > 0) {
+            $status .= ' '.__('utilities.import.retried', ['count' => $count]);
+        }
+
+        return redirect("/utility-accounts/{$account->id}")->with('status', $status);
     }
 
     public function show(UtilityAccount $account): View

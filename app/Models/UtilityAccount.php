@@ -91,6 +91,13 @@ class UtilityAccount extends Model
         return $this->properties()->reorder()->orderByDesc('position')->value('property_id');
     }
 
+    /** Има ли внесени платени сметки (тогава номерът и доставчикът са заключени). */
+    public function hasPaidBills(): bool
+    {
+        return $this->exists && PaidUtilityBill::query()->withoutGlobalScopes()
+            ->where('company_id', $this->company_id)->where('utility_account_id', $this->id)->exists();
+    }
+
     public function isFixed(): bool
     {
         return $this->billing === UtilityBilling::Fixed;

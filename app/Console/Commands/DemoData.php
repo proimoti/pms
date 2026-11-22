@@ -52,6 +52,10 @@ class DemoData extends Command
         foreach ($result['cases'] as $case) {
             $this->line('  - '.$case);
         }
+        $this->line('Измислени файлове за внос на битовите сметки (Битови сметки → Внос на сметки):');
+        foreach ($result['files'] as $file) {
+            $this->line('  - '.$file);
+        }
 
         return self::SUCCESS;
     }

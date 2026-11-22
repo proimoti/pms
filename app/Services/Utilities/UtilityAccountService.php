@@ -10,6 +10,7 @@ use App\Models\UtilityAccount;
 use App\Models\UtilityAccountProperty;
 use App\Models\Scopes\CompanyScope;
 use App\Support\BgDate;
+use App\Support\Format;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
 use Illuminate\Validation\ValidationException;
@@ -20,11 +21,13 @@ use Illuminate\Validation\ValidationException;
  *
  * - реален: доставчик и номер задължителни, без фиксирана сума;
  * - фиксиран: сума над 0; номер и доставчик по избор;
+ * - след първата внесена сметка номерът и доставчикът се заключват;
  * - номерът се пази точно; доставчик + номер (без нулите отпред) е уникален
  *   във фирмата, и сред архивираните (абонат не минава към друг имот);
  * - период: ден от (празно = 1) и ден до (празно = последният ден), 1–31;
  * - поне един имот; при един имот делът е 100 %, при няколко всеки е над 0,
- *   с до два знака, и сборът не е над 100 %; остатъкът отива към последния.
+ *   с до два знака, и сборът е точно 100 % (решено 22.11.2026); стотинките
+ *   от закръглянето при вноса отиват към последния имот.
  */
 final class UtilityAccountService
 {
@@ -98,6 +101,16 @@ final class UtilityAccountService
             $errors->add('number', __('utilities.errors.number_format'));
         } elseif ($number !== null && $providerId !== null && $this->numberTaken($account, $this->companyId($account, $data), (int) $providerId, $number)) {
             $errors->add('number', __('utilities.errors.number_taken', ['number' => $number]));
+        }
+
+        // След първата внесена сметка номерът и доставчикът не се сменят (PROJECT.md, „Внос, уточнения“).
+        if ($account->exists && $account->hasPaidBills()) {
+            if ((string) $providerId !== (string) $account->provider_id) {
+                $errors->add('provider_id', __('utilities.errors.provider_locked'));
+            }
+            if ($number !== $account->number) {
+                $errors->add('number', __('utilities.errors.number_locked'));
+            }
         }
 
         // Фиксирана сума
@@ -180,18 +193,20 @@ final class UtilityAccountService
 
         $lines = [];
         $total = 0;
+        $valid = true;
         foreach ($rows as $index => $row) {
             $share = $this->share($row['share'] ?? null);
             if ($share === null) {
                 $errors->add('properties', __('utilities.errors.share'));
+                $valid = false;
             } else {
-                $total += (int) round(((float) $share) * 100);
+                $total += (int) round(((float) $share) * 100); // в стотни от процента
             }
             $lines[] = [$ids[$index], $share];
         }
 
-        if ($total > 10000) {
-            $errors->add('properties', __('utilities.errors.shares_over_100'));
+        if ($valid && $total !== 10000) {
+            $errors->add('properties', __('utilities.errors.shares_total', ['total' => Format::money(number_format($total / 100, 2, '.', ''))]));
         }
 
         return $lines;

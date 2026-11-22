@@ -91,7 +91,11 @@
                 </tbody>
             </table>
         </div>
-        <button type="button" class="secondary" id="add-property">{{ __('utilities.add_property') }}</button>
+        <p class="muted" id="shares-total" aria-live="polite"></p>
+        <div class="actions">
+            <button type="button" class="secondary" id="add-property">{{ __('utilities.add_property') }}</button>
+            <button type="button" class="secondary" id="split-equally">{{ __('utilities.split_equally') }}</button>
+        </div>
 
         <label for="note">{{ __('utilities.fields.note') }}</label>
         <textarea id="note" name="note">{{ old('note', $account->note) }}</textarea>
@@ -113,10 +117,53 @@
             const template = document.getElementById('property-template');
             let next = {{ count($rows) }};
 
+            const totalLine = document.getElementById('shares-total');
+            const texts = @json(['entered' => __('utilities.shares_entered'), 'over' => __('utilities.shares_over'), 'ok' => __('utilities.shares_ok')]);
+            const format = (hundredths) => (hundredths / 100).toFixed(2).replace('.', ',');
+
+            // Редовете с избран имот; делът се пише само при два или повече.
+            function chosen() {
+                return Array.from(rows.querySelectorAll('tr')).filter((row) => row.querySelector('select').value !== '');
+            }
+
+            // Сборът докато се пише (сметнат в стотни от процента, без грешки от закръгляне).
+            function showTotal() {
+                const lines = chosen();
+                if (lines.length < 2) {
+                    totalLine.textContent = '';
+                    return;
+                }
+                let total = 0;
+                lines.forEach((row) => {
+                    const value = parseFloat(row.querySelector('input').value.replace(',', '.').trim());
+                    total += isNaN(value) ? 0 : Math.round(value * 100);
+                });
+                totalLine.textContent = total === 10000 ? texts.ok
+                    : total < 10000 ? texts.entered.replace(':total', format(total)).replace(':left', format(10000 - total))
+                    : texts.over.replace(':total', format(total)).replace(':over', format(total - 10000));
+            }
+
+            // „Раздели поравно“: по равно на всеки, остатъкът към последния (33,33 / 33,33 / 33,34).
+            document.getElementById('split-equally').addEventListener('click', function () {
+                const lines = chosen();
+                if (lines.length < 2) {
+                    return;
+                }
+                const each = Math.floor(10000 / lines.length);
+                lines.forEach((row, index) => {
+                    const share = index === lines.length - 1 ? 10000 - each * (lines.length - 1) : each;
+                    row.querySelector('input').value = format(share);
+                });
+                showTotal();
+            });
+
             document.getElementById('add-property').addEventListener('click', function () {
                 rows.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', String(next++)));
                 rows.lastElementChild.querySelector('select').focus();
             });
+            rows.addEventListener('input', showTotal);
+            rows.addEventListener('change', showTotal);
+            showTotal();
         })();
     </script>
 @endsection

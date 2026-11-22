@@ -382,10 +382,15 @@ class Reconciliation
         ];
     }
 
-    /** Записите в книгата на фирмата (без филтъра „само прикачените“: сметката е за целия месец). */
+    /**
+     * Записите в книгата на фирмата за наемателите и собствениците (без филтъра
+     * „само прикачените“: сметката е за целия месец). Платените битови сметки
+     * (407) не са издаване и не се броят тук.
+     */
     private function entries()
     {
-        return LedgerEntry::query()->withoutGlobalScope(RegistryVisibilityScope::class);
+        return LedgerEntry::query()->withoutGlobalScope(RegistryVisibilityScope::class)
+            ->whereIn('account', [LedgerAccount::Tenant, LedgerAccount::Deposit, LedgerAccount::Owner]);
     }
 
     private function companyId(): int

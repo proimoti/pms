@@ -100,6 +100,17 @@ class UtilityScreensTest extends ScreenTestCase
             ->assertSee(__('utilities.hints.remainder', ['number' => 102]));
     }
 
+    public function test_form_shows_the_shares_total_and_split_equally(): void
+    {
+        $this->actingAs($this->staff());
+
+        // Сборът се показва докато се пише; „Раздели поравно“ дава 33,33 / 33,33 / 33,34 (PROJECT.md, 22.11.2026).
+        $this->get('/utility-accounts/create')->assertOk()
+            ->assertSee('id="shares-total"', false)->assertSee(__('utilities.split_equally'))
+            ->assertSee(__('utilities.hints.shares'));
+        $this->assertStringNotContainsString('под 100', __('utilities.hints.shares'));
+    }
+
     public function test_fixed_account_shows_its_amount(): void
     {
         $property = $this->property(['number' => 7]);

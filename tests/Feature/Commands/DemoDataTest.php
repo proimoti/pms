@@ -18,15 +18,19 @@ use App\Models\OwnerContract;
 use App\Models\OwnerContractPayee;
 use App\Models\Property;
 use App\Models\PropertyType;
+use App\Models\Provider;
 use App\Models\Tenant;
 use App\Models\UpcomingCharge;
 use App\Models\User;
+use App\Models\UtilityAccount;
 use App\Services\Charges\Cents;
 use App\Services\Charges\ChargeCalculator;
 use App\Services\Charges\ProposedCharge;
+use App\Services\Utilities\UtilityImporter;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -37,6 +41,12 @@ use Tests\TestCase;
 class DemoDataTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local'); // демо файловете за внос не отиват в истинската папка
+    }
 
     private const PASSWORD = 'Измислена-парола-2026';
 
@@ -182,5 +192,43 @@ class DemoDataTest extends TestCase
         $tenantWithTwo = $leases->groupBy('tenant_id')->first(fn ($group) => $group->count() === 2)->first()->tenant_id;
         $rents = collect($charges->charges())->where('type', ProposedCharge::RENT)->where('tenantId', $tenantWithTwo);
         $this->assertCount(2, $rents->pluck('leaseContractId')->unique());
+    }
+
+    public function test_utility_accounts_and_sample_import_files(): void
+    {
+        // Битови сметки (PROJECT.md, т. 3.4 и т. 5.3): доставчици, абонати (един имот,
+        // общ 50/50 и 33,33/33,33/33,34, фиксиран) и два измислени файла за внос.
+        Storage::fake('local');
+        config(['app.allow_demo_data' => true]);
+        $this->runDemo()->expectsOutputToContain('easypay-demo.xlsx')->expectsOutputToContain('epay-demo.xlsx')->assertSuccessful();
+        $company = $this->demoCompany();
+
+        $this->assertSame(4, $this->rowsOf(Provider::class, $company));
+        $accounts = UtilityAccount::query()->withoutGlobalScopes()->where('company_id', $company->id)->with(['properties' => fn ($q) => $q->withoutGlobalScopes()])->get();
+        $this->assertTrue($accounts->contains(fn ($a) => $a->isFixed() && $a->fixed_amount === '15.00'));
+        $this->assertTrue($accounts->contains(fn ($a) => $a->properties->pluck('share')->all() === ['50.00', '50.00']));
+        $this->assertTrue($accounts->contains(fn ($a) => $a->properties->pluck('share')->all() === ['33.33', '33.33', '33.34']));
+        $this->assertTrue($accounts->contains(fn ($a) => str_starts_with((string) $a->number, '00')), 'номер с нули отпред');
+
+        $folder = "demo/{$company->id}";
+        Storage::disk('local')->assertExists(["{$folder}/easypay-demo.xlsx", "{$folder}/epay-demo.xlsx"]);
+
+        // Прегледът на файловете като демо служителя: разпознати, „за решение“, повторен ред, такси.
+        $this->actingAs(User::query()->where('email', 'demo-test@example.test')->sole());
+        $importer = app(UtilityImporter::class);
+
+        $easypay = $importer->preview(Storage::disk('local')->path("{$folder}/easypay-demo.xlsx"));
+        $this->assertSame('easypay', $easypay->source);
+        $this->assertCount(7, $easypay->bills);
+        $this->assertSame(['unknown_number'], array_map(fn ($i) => $i->reason, $easypay->issues));
+        $this->assertCount(1, $easypay->duplicates);
+
+        $epay = $importer->preview(Storage::disk('local')->path("{$folder}/epay-demo.xlsx"));
+        $this->assertSame('epay', $epay->source);
+        $this->assertCount(2, $epay->bills);
+        $this->assertSame(['unknown_provider'], array_map(fn ($i) => $i->reason, $epay->issues));
+        $this->assertSame(2, $epay->skippedFees);
+        $shared = collect($epay->bills)->first(fn ($b) => count($b->parts) === 3);
+        $this->assertSame(['40.40', '40.40', '40.41'], array_values($shared->parts), '121,21 € при 33,33/33,33/33,34: стотинката към последния');
     }
 }

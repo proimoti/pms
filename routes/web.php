@@ -13,6 +13,8 @@ use App\Http\Controllers\Registry\OwnerController;
 use App\Http\Controllers\Registry\PropertyController;
 use App\Http\Controllers\Registry\ProviderController;
 use App\Http\Controllers\Registry\UtilityAccountController;
+use App\Http\Controllers\Utilities\UtilityImportController;
+use App\Http\Controllers\Utilities\UtilityIssueController;
 use App\Http\Controllers\Registry\TenantController;
 use App\Http\Middleware\EnsureRegistryAccess;
 use Illuminate\Support\Facades\Route;
@@ -117,6 +119,20 @@ Route::middleware('auth')->group(function () {
         Route::put('charges/{charge}', [ChargeWorksheetController::class, 'update'])->middleware($manage)->name('charges.update');
         Route::post('charges/{charge}/remove', [ChargeWorksheetController::class, 'remove'])->middleware($manage)->name('charges.remove');
         Route::post('charges/{charge}/restore', [ChargeWorksheetController::class, 'restore'])->middleware($manage)->name('charges.restore');
+
+        // Внос на платените битови сметки (PROJECT.md, т. 5.3): само „четене и запис“ и „всички имоти“.
+        Route::middleware($manage)->group(function () {
+            Route::get('utility-imports', [UtilityImportController::class, 'index'])->name('utility-imports.index');
+            Route::post('utility-imports/preview', [UtilityImportController::class, 'preview'])->name('utility-imports.preview');
+            Route::post('utility-imports', [UtilityImportController::class, 'store'])->name('utility-imports.store');
+            Route::post('utility-imports/cancel', [UtilityImportController::class, 'cancel'])->name('utility-imports.cancel');
+            Route::get('utility-imports/{batch}', [UtilityImportController::class, 'show'])->name('utility-imports.show');
+            Route::get('utility-issues', [UtilityIssueController::class, 'index'])->name('utility-issues.index');
+            Route::post('utility-issues/retry', [UtilityIssueController::class, 'retry'])->name('utility-issues.retry');
+            Route::post('utility-issues/{issue}/ignore', [UtilityIssueController::class, 'ignore'])->name('utility-issues.ignore');
+            Route::post('utility-issues/{issue}/unignore', [UtilityIssueController::class, 'unignore'])->name('utility-issues.unignore');
+            Route::post('utility-issues/{issue}/provider', [UtilityIssueController::class, 'linkProvider'])->name('utility-issues.provider');
+        });
 
         Route::get('upcoming-charges', [UpcomingChargeController::class, 'index'])->name('upcoming-charges.index');
         Route::get('upcoming-charges/create', [UpcomingChargeController::class, 'create'])->middleware($manage)->name('upcoming-charges.create');

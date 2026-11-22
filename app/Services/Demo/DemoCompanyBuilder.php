@@ -17,14 +17,18 @@ use App\Models\Owner;
 use App\Models\OwnerContract;
 use App\Models\Property;
 use App\Models\PropertyType;
+use App\Models\Provider;
 use App\Models\Tenant;
 use App\Models\UpcomingCharge;
 use App\Models\User;
 use App\Services\Charges\Month;
 use App\Services\LeaseContractService;
 use App\Services\OwnerContractService;
+use App\Services\Utilities\UtilityAccountService;
+use App\Support\Xlsx\XlsxWriter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Нова измислена демо фирма (командата pms:demo-data). Само измислени данни:
@@ -48,9 +52,10 @@ class DemoCompanyBuilder
     public function __construct(
         private readonly OwnerContractService $managements,
         private readonly LeaseContractService $leases,
+        private readonly UtilityAccountService $utilityAccounts,
     ) {}
 
-    /** @return array{company: Company, month: string, cases: list<string>} */
+    /** @return array{company: Company, month: string, cases: list<string>, files: list<string>} */
     public function build(string $email, string $name, string $password): array
     {
         $this->month = CarbonImmutable::now()->startOfMonth()->addMonth();
@@ -66,8 +71,9 @@ class DemoCompanyBuilder
             $beneficiaries = $this->beneficiaries();
 
             $this->contracts($owners, $tenants, $beneficiaries);
+            $files = $this->utilities();
 
-            return ['company' => $this->company, 'month' => Month::label($this->month), 'cases' => $this->cases()];
+            return ['company' => $this->company, 'month' => Month::label($this->month), 'cases' => $this->cases(), 'files' => $files];
         });
     }
 
@@ -247,6 +253,87 @@ class DemoCompanyBuilder
         $this->lease($tenants[10], [['property_id' => $p(15), 'rent' => '480']]);
     }
 
+    /**
+     * Битови сметки (PROJECT.md, т. 3.4 и т. 5.3): доставчици с имената им във
+     * файловете, абонати (номер с нули отпред, общ 50/50 и 33,33/33,33/33,34, фиксиран)
+     * и два измислени файла за внос, платени в месеца преди М. Файловете са в
+     * папката demo/{фирма}/ на локалното хранилище (storage/app/private).
+     *
+     * @return list<string> пътищата на файловете
+     */
+    private function utilities(): array
+    {
+        $p = fn (int $i) => $this->properties[$i]->id;
+        $provider = fn (string $name, ?string $easypay, ?string $epay) => $this->save(new Provider, ['name' => $name, 'easypay_name' => $easypay, 'epay_name' => $epay]);
+        $power = $provider('Измислено Електро', 'IZMISLENO ELEKTRO AD', 'Измислено Електро АД');
+        $water = $provider('Измислена Вода', 'IZMISLENA VODA EAD', 'Измислена Вода ЕАД');
+        $heating = $provider('Измислена Топлофикация', 'IZMISLENA TOPLOFIKACIA', 'Измислена Топлофикация ЕАД');
+        $provider('Входна такса (измислена)', null, null);
+
+        $account = fn (?Provider $by, ?string $number, string $kind, array $lines, array $extra = []) => $this->utilityAccounts->create(array_merge([
+            'company_id' => $this->company->id, 'provider_id' => $by?->id, 'number' => $number, 'kind' => $kind,
+            'billing' => 'actual', 'valid_from' => $this->since->toDateString(), 'properties' => $lines,
+        ], $extra));
+
+        // Ток по имот: номерът е с две нули отпред, а EasyPay го дава като число.
+        foreach ([1, 3, 4, 5, 8, 10] as $i) {
+            $account($power, '00'.(10000 + $i), 'electricity', [['property_id' => $p($i)]]);
+        }
+        // Общ абонат за вода за двата имота на един наемател, 50/50.
+        $account($water, '5000123', 'water', [['property_id' => $p(6), 'share' => '50'], ['property_id' => $p(7), 'share' => '50']]);
+        $account($water, '0300012', 'water', [['property_id' => $p(12)]]);
+        // Общо парно 33,33/33,33/33,34 (сборът е точно 100 %); стотинките отиват към последния имот.
+        $account($heating, '2000045678', 'heating', [
+            ['property_id' => $p(8), 'share' => '33.33'], ['property_id' => $p(10), 'share' => '33.33'], ['property_id' => $p(11), 'share' => '33.34'],
+        ]);
+        // Фиксиран абонат (такса вход): без номер, 15 € на месец, по дни като наема.
+        $account(null, null, 'common', [['property_id' => $p(1)]], ['billing' => 'fixed', 'fixed_amount' => '15']);
+
+        return $this->importFiles();
+    }
+
+    /** Двата измислени файла за внос (EasyPay и ePay) с плащания в месеца преди М. */
+    private function importFiles(): array
+    {
+        $paid = $this->month->subMonth();
+        $at = fn (int $day, string $time) => $paid->addDays($day - 1)->setTimeFromTimeString($time);
+        $nbsp = "\u{00A0}";
+        $base = 700000 + $this->company->id * 100;
+
+        $easypay = [array_map(fn ($title) => $nbsp.$title.$nbsp, ['Номер на превода', 'Дата', 'Кл.рег.', 'Абонатен номер', 'Търговец', 'Сума'])];
+        foreach ([1 => 48.20, 3 => 61.35, 4 => 22.10, 5 => 39.90, 8 => 55.00, 10 => 44.44] as $i => $amount) {
+            $easypay[] = [$base + $i, $at(5, '10:'.str_pad((string) $i, 2, '0', STR_PAD_LEFT)), 4401, 10000 + $i, 'IZMISLENO ELEKTRO AD', $amount];
+        }
+        $easypay[] = [$base + 20, $at(6, '09:00'), 4401, 5000123, 'IZMISLENA VODA EAD', 35.51];  // общ 50/50
+        $easypay[] = [$base + 21, $at(6, '09:05'), 4401, 99999, 'IZMISLENO ELEKTRO AD', 18.00]; // непознат номер
+        $easypay[] = [$base + 1, $at(5, '10:01'), 4401, 10001, 'IZMISLENO ELEKTRO AD', 48.20];  // повторен ред
+
+        $code = fn (int $n) => '90'.str_pad((string) ($this->company->id * 1000 + $n), 14, '0', STR_PAD_LEFT);
+        $date = fn (int $day, string $time) => $at($day, $time)->format('d.m.Y H:i:s');
+        $epay = [
+            ['Извлечение по сметка ePay (измислено)'],
+            ['Дата и час', 'Сметка', 'Приход', 'Разход', 'Кореспондент', 'Системен код', 'Описание', 'Подробно описание'],
+            [$date(7, '11:20'), 'EPAY-DEMO', null, '121.21', 'Измислена Топлофикация ЕАД', $code(1), '127(2000045678)',
+                "Измислена Топлофикация ЕАД\nАбонат 2000045678\nПериод: предходният месец"],
+            [$date(7, '11:25'), 'EPAY-DEMO', null, '0.60', 'Измислена Банка', $code(2), 'Такса банков превод', null],
+            [$date(8, '12:00'), 'EPAY-DEMO', null, '27.80', 'Измислена Вода ЕАД', $code(3), '127(0300012)', "Измислена Вода ЕАД\nАбонат 0300012"],
+            [$date(8, '12:05'), 'EPAY-DEMO', null, '0.60', 'Измислена Банка', $code(4), 'Такса банков превод', null],
+            [$date(9, '08:30'), 'EPAY-DEMO', '650.00', null, 'Измислен Наемател', $code(5), 'ДОГ. НАЕМ 3', null],
+            [$date(9, '09:00'), 'EPAY-DEMO', null, '12.00', 'Непознат Доставчик ООД', $code(6), '127(777001)', null],
+        ];
+
+        $folder = "demo/{$this->company->id}";
+        Storage::disk('local')->makeDirectory($folder);
+        $paths = [];
+        foreach (['easypay-demo.xlsx' => $easypay, 'epay-demo.xlsx' => $epay] as $name => $rows) {
+            $path = Storage::disk('local')->path("{$folder}/{$name}");
+            (new XlsxWriter)->write($path, $rows);
+            $paths[] = $path;
+        }
+
+        return $paths;
+    }
+
     /** @return list<string> какво да се пробва (за съобщението на командата) */
     private function cases(): array
     {
@@ -262,6 +349,7 @@ class DemoCompanyBuilder
             "Свободен имот с фиксирана сума: {$n(9)}; фиксирана сума от 10-о число: {$n(14)}",
             "Бенефициент, различен от собственика: {$n(11)}; плащане по банка без IBAN: {$n(8)} и {$n(9)}",
             "„За решение“: без договор за управление {$n(13)}; договорът за управление покрива само част от месеца {$n(15)}",
+            "Битови сметки: общ абонат за вода 50/50 ({$n(6)} и {$n(7)}), общо парно 33,33/33,33/33,34 ({$n(8)}, {$n(10)}, {$n(11)}), фиксирана такса вход 15 € ({$n(1)}); файловете за внос са по-долу",
         ];
     }
 
