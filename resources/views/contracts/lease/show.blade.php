@@ -18,6 +18,12 @@
 
     <dl>
         <dt>{{ __('contracts.screens.fields.state') }}</dt><dd><strong>{{ __('contracts.screens.states.'.$contract->stateOn()) }}</strong></dd>
+        {{-- Досие (23.11.2026): само „дължи по този договор“, подробно — на картата на наемателя. --}}
+        <dt>{{ __('dossiers.owes_on_contract') }}</dt>
+        <dd>
+            <strong>{{ Format::money($owes) }} €</strong>
+            @if ($contract->tenant) · <a href="/tenants/{{ $contract->tenant->id }}">{{ __('dossiers.owes_see_tenant') }}</a>@endif
+        </dd>
         <dt>{{ __('contracts.screens.fields.tenant') }}</dt>
         <dd>
             @if ($contract->tenant)
@@ -123,23 +129,16 @@
     @endif
     <p class="muted">{{ __('contracts.screens.hints.lease_amount_fields') }}</p>
 
+    <h2>{{ __('dossiers.sections.statements') }}</h2>
     @if ($canIssue)
-        <form method="GET" action="/lease-contracts/{{ $contract->id }}/issue" class="row" style="justify-content: flex-start; margin-top: 8px;">
-            <input type="text" inputmode="numeric" maxlength="7" name="month" placeholder="мм.гггг" aria-label="{{ __('charges.issue.now_month') }}" style="max-width: 140px;">
-            <button type="submit" class="secondary" style="margin-top: 0;">{{ __('charges.issue.now') }}</button>
+        <form method="GET" action="/lease-contracts/{{ $contract->id }}/issue" class="row" style="justify-content: flex-start; align-items: flex-end; margin-bottom: 12px;">
+            <div>
+                <label for="issue-month">{{ __('charges.fields.month') }}</label>
+                <input id="issue-month" type="text" inputmode="numeric" maxlength="7" name="month" placeholder="мм.гггг" style="max-width: 140px;">
+            </div>
+            <button type="submit" class="secondary">{{ __('charges.issue.now') }}</button>
         </form>
     @endif
-
-    {{-- Досие (23.11.2026): само „дължи по този договор“, подробно — на картата на наемателя; известията. --}}
-    <dl>
-        <dt>{{ __('dossiers.owes_on_contract') }}</dt>
-        <dd>
-            <strong>{{ Format::money($owes) }} €</strong>
-            @if ($contract->tenant) · <a href="/tenants/{{ $contract->tenant->id }}">{{ __('dossiers.owes_see_tenant') }}</a>@endif
-        </dd>
-    </dl>
-
-    <h2>{{ __('dossiers.sections.statements') }}</h2>
     @if ($statements->isEmpty())
         <p class="muted">{{ __('dossiers.none') }}</p>
     @else

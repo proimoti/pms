@@ -96,6 +96,14 @@ class DossierScreensTest extends ScreenTestCase
             ->assertSee(__('dossiers.sections.statements'))->assertSee('href="/statements/'.$statement->id.'"', false);
     }
 
+    public function test_lease_card_layout_owes_under_the_state_and_issue_now_in_the_statements_section(): void
+    {
+        $this->get("/lease-contracts/{$this->lease->id}")->assertOk()
+            ->assertSeeInOrder([__('contracts.screens.fields.state'), __('dossiers.owes_on_contract'), '500,00', __('contracts.screens.fields.tenant')])
+            ->assertSeeInOrder([__('contracts.screens.sections.annexes'), __('dossiers.sections.statements'), __('charges.fields.month'), __('charges.issue.now'), __('charges.issue.ledger')])
+            ->assertSee('<label for="issue-month">'.__('charges.fields.month').'</label>', false);
+    }
+
     public function test_owner_contract_shows_its_408_entries(): void
     {
         $this->get("/owner-contracts/{$this->management->id}")->assertOk()
