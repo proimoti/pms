@@ -15,6 +15,7 @@ use App\Http\Controllers\Registry\ProviderController;
 use App\Http\Controllers\Registry\FundController;
 use App\Http\Controllers\Registry\UtilityAccountController;
 use App\Http\Controllers\Utilities\UtilityImportController;
+use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Utilities\UnallocatedController;
 use App\Http\Controllers\Utilities\UtilityIssueController;
 use App\Http\Controllers\Registry\TenantController;
@@ -145,6 +146,12 @@ Route::middleware('auth')->group(function () {
             Route::post('utility-issues/{issue}/unignore', [UtilityIssueController::class, 'unignore'])->name('utility-issues.unignore');
             Route::post('utility-issues/{issue}/provider', [UtilityIssueController::class, 'linkProvider'])->name('utility-issues.provider');
         });
+
+        // Справки (PROJECT.md, „Досиета и първи справки“, 23.11.2026): всеки служител, със своите имоти.
+        Route::get('reports/expiring', [ReportController::class, 'expiring'])->name('reports.expiring');
+        Route::get('reports/vacant', [ReportController::class, 'vacant'])->name('reports.vacant');
+        Route::get('reports/expired', [ReportController::class, 'expired'])->name('reports.expired');
+        Route::get('reports/payouts', [ReportController::class, 'payouts'])->name('reports.payouts');
 
         // Неразпределени битови сметки (PROJECT.md, част 5, 23.11.2026): вижда всеки служител, решава „управлява начисленията“.
         Route::get('utility-unallocated', [UnallocatedController::class, 'index'])->name('utility-unallocated.index');
