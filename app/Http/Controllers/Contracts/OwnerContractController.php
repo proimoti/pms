@@ -114,6 +114,7 @@ class OwnerContractController extends RegistryController
         return view('contracts.owner.show', [
             'contract' => $contract,
             'annexNumbers' => $contract->annexes->pluck('number', 'id'),
+            'ownerEntries' => app(\App\Services\Dossiers\Dossier::class)->ownerEntries($contract),
         ]);
     }
 

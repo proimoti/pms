@@ -66,7 +66,27 @@ abstract class PartyController extends RegistryController
 
     protected function showRecord(Party $party): View
     {
-        return view('registry.parties.show', ['party' => $party, 'section' => $this->section()]);
+        $dossier = app(\App\Services\Dossiers\Dossier::class);
+        $data = ['party' => $party, 'section' => $this->section()];
+
+        // Досието (PROJECT.md, „Досиета и първи справки“, 23.11.2026).
+        if ($party instanceof \App\Models\Owner) {
+            $contracts = $dossier->ownerContracts($party);
+            $data += [
+                'contracts' => $contracts,
+                'properties' => $dossier->contractProperties($contracts),
+                'annexes' => $dossier->annexes($contracts),
+                'beneficiaries' => $dossier->ownerBeneficiaries($party),
+            ];
+        } elseif ($party instanceof \App\Models\Tenant) {
+            $data += [
+                'leases' => $dossier->tenantLeases($party),
+                'statements' => $dossier->tenantStatements($party),
+                'owes' => $dossier->tenantOwes($party),
+            ];
+        }
+
+        return view('registry.parties.show', $data);
     }
 
     protected function editRecord(Party $party): View

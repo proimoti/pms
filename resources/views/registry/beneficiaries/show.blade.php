@@ -26,5 +26,7 @@
         </dd>
     </dl>
 
+    @include('dossiers.beneficiary')
+
     @include('registry.partials.record-actions', ['section' => 'beneficiaries', 'record' => $beneficiary])
 @endsection

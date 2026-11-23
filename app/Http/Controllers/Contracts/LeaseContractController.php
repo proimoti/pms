@@ -102,6 +102,8 @@ class LeaseContractController extends RegistryController
             'annexNumbers' => $contract->annexes->pluck('number', 'id'),
             'withoutManagement' => $this->leases->propertiesWithoutManagement($contract),
             'entries' => LedgerEntry::query()->where('lease_contract_id', $contract->id)->orderBy('month')->orderBy('id')->get(),
+            'owes' => app(\App\Services\Dossiers\Dossier::class)->leaseOwes($contract),
+            'statements' => app(\App\Services\Dossiers\Dossier::class)->leaseStatements($contract),
             'canIssue' => WorksheetRules::canManage(auth()->user()) && ! $contract->isArchived(),
         ]);
     }

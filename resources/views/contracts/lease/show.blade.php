@@ -130,6 +130,26 @@
         </form>
     @endif
 
+    {{-- Досие (23.11.2026): само „дължи по този договор“, подробно — на картата на наемателя; известията. --}}
+    <dl>
+        <dt>{{ __('dossiers.owes_on_contract') }}</dt>
+        <dd>
+            <strong>{{ Format::money($owes) }} €</strong>
+            @if ($contract->tenant) · <a href="/tenants/{{ $contract->tenant->id }}">{{ __('dossiers.owes_see_tenant') }}</a>@endif
+        </dd>
+    </dl>
+
+    <h2>{{ __('dossiers.sections.statements') }}</h2>
+    @if ($statements->isEmpty())
+        <p class="muted">{{ __('dossiers.none') }}</p>
+    @else
+        <ul>
+            @foreach ($statements as $statement)
+                <li><a href="/statements/{{ $statement->id }}">№ {{ $statement->number }}</a> · {{ \App\Services\Charges\Month::label($statement->month) }} · {{ Format::money($statement->total) }} €</li>
+            @endforeach
+        </ul>
+    @endif
+
     <h2>{{ __('charges.issue.ledger') }}</h2>
     @if ($entries->isEmpty())
         <p class="muted">{{ __('charges.issue.no_entries') }}</p>

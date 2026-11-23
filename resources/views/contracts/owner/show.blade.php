@@ -182,5 +182,38 @@
     @endif
     <p class="muted">{{ __('contracts.screens.hints.amount_fields') }}</p>
 
+    {{-- Досие (23.11.2026): записите по 408 към собственика. --}}
+    <h2>{{ __('dossiers.sections.ledger_408') }}</h2>
+    @if ($ownerEntries->isEmpty())
+        <p class="muted">{{ __('charges.issue.no_entries') }}</p>
+    @else
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>{{ __('charges.fields.month') }}</th>
+                    <th>{{ __('charges.issue.entry_date') }}</th>
+                    <th>{{ __('charges.fields.property') }}</th>
+                    <th class="num">{{ __('charges.fields.amount') }}</th>
+                    <th>{{ __('charges.fields.source') }}</th>
+                    <th>{{ __('charges.fields.reason') }}</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach ($ownerEntries as $entry)
+                    <tr>
+                        <td>{{ \App\Services\Charges\Month::label($entry->month) }}</td>
+                        <td>{{ \App\Support\Format::date($entry->entry_date) }}</td>
+                        <td>@if ($entry->property)<a href="/properties/{{ $entry->property_id }}">№ {{ $entry->property->number }}</a>@endif</td>
+                        <td class="num">{{ \App\Support\Format::money($entry->amount) }}</td>
+                        <td>{{ __('charges.issue.kinds.'.$entry->kind->value) }}</td>
+                        <td>{{ $entry->reason }}</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
     @include('registry.partials.record-actions', ['section' => 'owner-contracts', 'record' => $contract])
 @endsection

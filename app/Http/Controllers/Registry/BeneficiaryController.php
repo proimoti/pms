@@ -53,7 +53,15 @@ class BeneficiaryController extends RegistryController
 
     public function show(Beneficiary $beneficiary): View
     {
-        return view('registry.beneficiaries.show', ['beneficiary' => $beneficiary->load('owner')]);
+        $dossier = app(\App\Services\Dossiers\Dossier::class);
+        $contracts = $dossier->beneficiaryContracts($beneficiary);
+
+        return view('registry.beneficiaries.show', [
+            'beneficiary' => $beneficiary->load('owner'),
+            'contracts' => $contracts,
+            'properties' => $dossier->contractProperties($contracts),
+            'annexes' => $dossier->annexes($contracts),
+        ]);
     }
 
     public function edit(Beneficiary $beneficiary): View

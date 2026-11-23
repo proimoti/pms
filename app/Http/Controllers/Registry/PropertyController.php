@@ -53,7 +53,17 @@ class PropertyController extends RegistryController
 
     public function show(Property $property): View
     {
-        return view('registry.properties.show', ['property' => $property->load(['propertyType', 'broker'])]);
+        $dossier = app(\App\Services\Dossiers\Dossier::class);
+
+        return view('registry.properties.show', [
+            'property' => $property->load(['propertyType', 'broker']),
+            'managements' => $dossier->propertyManagements($property),
+            'leases' => $dossier->propertyLeases($property),
+            'accounts' => $dossier->propertyAccounts($property),
+            'funds' => $dossier->propertyFunds($property),
+            'unallocated' => $dossier->propertyUnallocated($property),
+            'balances' => $dossier->propertyBalances($property),
+        ]);
     }
 
     public function edit(Property $property): View

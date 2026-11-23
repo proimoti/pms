@@ -19,5 +19,11 @@
         <dt>{{ __('registry.fields.note') }}</dt><dd style="white-space: pre-line;">{{ $party->note ?? __('registry.none') }}</dd>
     </dl>
 
+    @if ($party instanceof \App\Models\Owner)
+        @include('dossiers.owner')
+    @elseif ($party instanceof \App\Models\Tenant)
+        @include('dossiers.tenant')
+    @endif
+
     @include('registry.partials.record-actions', ['section' => $section, 'record' => $party])
 @endsection

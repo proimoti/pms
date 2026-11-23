@@ -14,5 +14,7 @@
         <dt>{{ __('registry.fields.note') }}</dt><dd style="white-space: pre-line;">{{ $property->note ?? __('registry.none') }}</dd>
     </dl>
 
+    @include('dossiers.property')
+
     @include('registry.partials.record-actions', ['section' => 'properties', 'record' => $property])
 @endsection
