@@ -37,6 +37,7 @@ return [
         'funds' => 'Общи фондове',
         'utility-imports' => 'Внос на сметки',
         'utility-issues' => 'За решение (внос)',
+        'utility-unallocated' => 'Неразпределени сметки',
     ],
     'new' => [
         'properties' => 'Нов имот',
@@ -76,7 +77,7 @@ return [
         'registry' => ['properties', 'owners', 'beneficiaries', 'tenants', 'brokers'],
         'contracts' => ['owner-contracts', 'lease-contracts'],
         'charges' => ['charges', 'upcoming-charges', 'statements'],
-        'utilities' => ['utility-imports', 'utility-issues', 'utility-accounts', 'funds', 'providers'],
+        'utilities' => ['utility-imports', 'utility-issues', 'utility-unallocated', 'utility-accounts', 'funds', 'providers'],
     ],
     // Разделите само за служител, който управлява начисленията („четене и запис“ и „всички имоти“).
     'menu_manage_only' => ['utility-imports', 'utility-issues'],

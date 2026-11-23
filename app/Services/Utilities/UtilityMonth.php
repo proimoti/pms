@@ -64,8 +64,15 @@ final class UtilityMonth
         $month = $month->startOfMonth()->startOfDay();
         $rows = $forDecision = [];
 
+        // Сметка и имот с решение („Неразпределени“, част 5) вече не се делят и не са „за решение“.
+        $decided = DB::table('utility_decisions')->where('company_id', $companyId)->whereNull('cancelled_at')
+            ->get(['paid_utility_bill_id', 'property_id'])->map(fn ($d) => $d->paid_utility_bill_id.':'.$d->property_id)->flip();
+
         foreach ($this->bills($companyId, $month) as $bill) {
             foreach ($this->calculator->forBill($bill, $month) as $split) {
+                if ($decided->has($bill->id.':'.$split->propertyId)) {
+                    continue;
+                }
                 foreach ($split->shares as $share) {
                     $rows[] = [
                         'type' => ChargeType::Utility, 'lease' => $share->leaseContractId, 'tenant' => $share->tenantId,

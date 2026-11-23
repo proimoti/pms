@@ -56,6 +56,12 @@ class ChargeDraft extends Model
         return $this->belongsTo(PaidUtilityBill::class);
     }
 
+    /** Решението „към следващия наемател“, от което е редът (част 5). */
+    public function utilityDecision(): BelongsTo
+    {
+        return $this->belongsTo(UtilityDecision::class);
+    }
+
     public function utilityAccount(): BelongsTo
     {
         return $this->belongsTo(UtilityAccount::class);

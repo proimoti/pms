@@ -15,6 +15,7 @@ use App\Http\Controllers\Registry\ProviderController;
 use App\Http\Controllers\Registry\FundController;
 use App\Http\Controllers\Registry\UtilityAccountController;
 use App\Http\Controllers\Utilities\UtilityImportController;
+use App\Http\Controllers\Utilities\UnallocatedController;
 use App\Http\Controllers\Utilities\UtilityIssueController;
 use App\Http\Controllers\Registry\TenantController;
 use App\Http\Middleware\EnsureRegistryAccess;
@@ -144,6 +145,12 @@ Route::middleware('auth')->group(function () {
             Route::post('utility-issues/{issue}/unignore', [UtilityIssueController::class, 'unignore'])->name('utility-issues.unignore');
             Route::post('utility-issues/{issue}/provider', [UtilityIssueController::class, 'linkProvider'])->name('utility-issues.provider');
         });
+
+        // Неразпределени битови сметки (PROJECT.md, част 5, 23.11.2026): вижда всеки служител, решава „управлява начисленията“.
+        Route::get('utility-unallocated', [UnallocatedController::class, 'index'])->name('utility-unallocated.index');
+        Route::post('utility-unallocated/manager', [UnallocatedController::class, 'toManager'])->middleware($manage)->name('utility-unallocated.manager');
+        Route::post('utility-unallocated/next-tenant', [UnallocatedController::class, 'toNextTenant'])->middleware($manage)->name('utility-unallocated.next-tenant');
+        Route::post('utility-decisions/{decision}/cancel', [UnallocatedController::class, 'cancel'])->middleware($manage)->name('utility-decisions.cancel');
 
         Route::get('upcoming-charges', [UpcomingChargeController::class, 'index'])->name('upcoming-charges.index');
         Route::get('upcoming-charges/create', [UpcomingChargeController::class, 'create'])->middleware($manage)->name('upcoming-charges.create');

@@ -12,6 +12,9 @@ use App\Models\PeriodLock;
 use App\Models\Property;
 use App\Models\Scopes\CompanyScope;
 use App\Models\UpcomingCharge;
+use App\Models\Scopes\RegistryVisibilityScope;
+use App\Models\UtilityDecision;
+use App\Services\Utilities\UtilityCalculator;
 use App\Services\Utilities\UtilityMonth;
 use App\Support\Format;
 use Carbon\CarbonImmutable;
@@ -90,7 +93,9 @@ class MonthWorksheet
                 fn (ProposedCharge $charge) => $charge->type === ProposedCharge::RENT && ! in_array($charge->leaseContractId, $issued, true));
             $this->applyComputed($start, $rows->where('source', ChargeSource::Computed)->where('type', ChargeType::Rent), $rents);
             $this->applyUpcoming($start, $rows->where('source', ChargeSource::Upcoming), $issued);
-            $this->applyUtilities($start, $rows->where('source', ChargeSource::Computed)->filter(fn (ChargeDraft $row) => $row->isUtility()), $issued);
+            $utilityRows = $rows->where('source', ChargeSource::Computed)->filter(fn (ChargeDraft $row) => $row->isUtility());
+            $this->applyUtilities($start, $utilityRows->whereNull('utility_decision_id'), $issued);
+            $this->applyDecisions($start, $utilityRows->whereNotNull('utility_decision_id'), $issued);
             $this->refreshOwners($start);
 
             $stamp->forceFill(['month' => $start, 'generated_at' => now(), 'generated_by' => Auth::id()])->save();
@@ -478,6 +483,60 @@ class MonthWorksheet
 
         foreach ($byKey as $k => $row) {
             if (! isset($seen[$k])) {
+                $this->drop($row);
+            }
+        }
+    }
+
+    /**
+     * Решенията „към следващия наемател“ (PROJECT.md, част 5, 23.11.2026): по един
+     * битов ред за остатъка на сметката, в първия генериран месец след решението
+     * (само веднъж). Като другите битови редове: ръчно променените и махнатите
+     * се пазят; ред на отменено решение отпада.
+     */
+    private function applyDecisions(CarbonImmutable $start, Collection $existing, array $issued): void
+    {
+        $byDecision = $existing->keyBy('utility_decision_id');
+        $seen = [];
+
+        $decisions = UtilityDecision::query()->withoutGlobalScope(RegistryVisibilityScope::class)
+            ->where('kind', UtilityDecision::NEXT_TENANT)->whereNull('cancelled_at')
+            ->with(['bill.account', 'leaseContract'])->orderBy('id')->get();
+
+        foreach ($decisions as $decision) {
+            if (in_array((int) $decision->lease_contract_id, $issued, true)) {
+                continue;
+            }
+            $elsewhere = ChargeDraft::query()->withoutGlobalScope(RegistryVisibilityScope::class)
+                ->where('utility_decision_id', $decision->id)->whereDate('month', '<>', $start->toDateString())->exists();
+            if ($elsewhere) {
+                continue;
+            }
+            $seen[$decision->id] = true;
+            [$from, $to] = UtilityCalculator::period($decision->bill->account, $decision->bill->paid_at);
+
+            $row = $byDecision->get($decision->id) ?? (new ChargeDraft)->forceFill([
+                'month' => $start, 'type' => ChargeType::Utility, 'source' => ChargeSource::Computed,
+                'lease_contract_id' => $decision->lease_contract_id, 'property_id' => $decision->property_id,
+                'paid_utility_bill_id' => $decision->paid_utility_bill_id, 'utility_account_id' => $decision->bill->utility_account_id,
+                'utility_decision_id' => $decision->id,
+            ]);
+            $row->forceFill([
+                'tenant_id' => $decision->leaseContract?->tenant_id,
+                'days' => null,
+                'period_from' => $from,
+                'period_to' => $to,
+                'proposed_amount' => $decision->amount,
+                'note' => __('utilities.unallocated.next_tenant_note'),
+            ]);
+            if ($this->untouched($row)) {
+                $row->amount = $decision->amount;
+            }
+            $row->save();
+        }
+
+        foreach ($byDecision as $decisionId => $row) {
+            if (! isset($seen[$decisionId])) {
                 $this->drop($row);
             }
         }

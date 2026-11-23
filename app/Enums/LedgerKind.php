@@ -11,4 +11,5 @@ enum LedgerKind: string
     case UtilityPaid = 'utility_paid'; // внесена платена битова сметка (407 на имота)
     case FundIncome = 'fund_income';   // приход във фонда: фиксирана такса (407 на фонда, −)
     case FundExpense = 'fund_expense'; // разход от фонда: сметка, платена от фонда (407 на фонда, +)
+    case ManagerCost = 'manager_cost'; // за сметка на управителя: остатък на сметка (407 на имота, −; + при отмяна)
 }
