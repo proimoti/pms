@@ -32,7 +32,7 @@ class StatementController extends Controller
     public function show(Statement $statement): View
     {
         return view('charges.statements.show', [
-            'statement' => $statement->load(['leaseContract', 'tenant', 'issuedBy', 'lines.property']),
+            'statement' => $statement->load(['leaseContract', 'tenant', 'issuedBy', 'lines.property', 'lines.paidUtilityBill', 'lines.utilityAccount.provider']),
         ]);
     }
 }

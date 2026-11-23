@@ -37,13 +37,20 @@
                     </tr>
                     </thead>
                     <tbody>
+                    {{-- Битов ред със сума 0 не е в известието (PROJECT.md, „Битови сметки в месеца“). --}}
                     @foreach ($rows as $row)
+                        @continue(isset($row['draft']) && $row['draft']->isUtility() && Cents::from((string) $row['amount']) === 0)
                         <tr>
                             <td>№ {{ $properties[$row['property_id']] ?? '?' }}</td>
                             <td>{{ __('charges.types.'.$row['type']->value) }}</td>
                             <td class="num">{{ $row['days'] }}</td>
                             <td class="num">{{ Format::money((string) $row['amount']) }}</td>
-                            <td>{{ $row['note'] }}</td>
+                            <td>
+                                @if (isset($row['draft']) && $row['draft']->isUtility())
+                                    @include('charges.partials.utility-label', ['row' => $row['draft']])
+                                @endif
+                                {{ $row['note'] }}
+                            </td>
                         </tr>
                     @endforeach
                     </tbody>

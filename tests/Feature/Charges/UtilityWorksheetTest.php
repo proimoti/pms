@@ -267,19 +267,6 @@ class UtilityWorksheetTest extends ContractTestCase
         $this->assertCount(1, $this->sheet->utilitiesForDecision('2027-01'), 'остава за решение и в следващия месец');
     }
 
-    // Временно, до част 4б
-
-    public function test_issuing_with_utility_rows_waits_for_part_4b(): void
-    {
-        $lease = $this->lease($this->flat, '2026-01-10');
-        $this->bill($this->meter, '2026-12-05', 90.00);
-        $this->sheet->generate('2026-12');
-
-        $this->assertRejected(fn () => app(Issuer::class)->issueMonth('2026-12'), 'month');
-        $this->assertRejected(fn () => app(Issuer::class)->issueNow($lease, '2026-12'), 'month');
-        $this->assertSame(0, LedgerEntry::query()->where('account', '<>', '407')->count(), 'нищо в книгата освен 407 от вноса');
-    }
-
     // Фирми
 
     public function test_bills_of_another_company_are_not_in_our_worksheet(): void

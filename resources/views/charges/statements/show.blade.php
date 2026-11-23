@@ -37,7 +37,12 @@
                     <td>{{ __('charges.types.'.$line->type->value) }}</td>
                     <td class="num">{{ $line->days }}</td>
                     <td class="num">{{ Format::money($line->amount) }}</td>
-                    <td>{{ $line->note }}</td>
+                    <td>
+                        @if ($line->isUtility())
+                            @include('charges.partials.utility-label', ['row' => $line, 'details' => true])
+                        @endif
+                        {{ $line->note }}
+                    </td>
                 </tr>
             @endforeach
             </tbody>

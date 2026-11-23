@@ -146,4 +146,28 @@ class UtilityWorksheetScreensTest extends ScreenTestCase
         $this->get('/charges/issue?month=2026-12')->assertOk()
             ->assertDontSee('№ 0012345')->assertDontSee('Период: 01.11.2026 - 30.11.2026')->assertSee('№ 102');
     }
+
+    public function test_issued_notice_shows_the_utility_line_with_provider_number_period_and_details(): void
+    {
+        $lease = $this->lease("Анна Измислена", "2026-01-10");
+        $this->epayBill(90.00, "Период: 01.11.2026 - 30.11.2026
+Измислен абонат");
+        $this->post("/charges/generate", ["month" => "2026-12"]);
+        $this->post("/charges/issue", ["month" => "2026-12", "reviewed" => "1"])->assertSessionHasNoErrors();
+
+        $statement = \App\Models\Statement::query()->where("lease_contract_id", $lease->id)->sole();
+        $this->get("/statements/{$statement->id}")->assertOk()
+            ->assertSee("Измислено Електро")->assertSee("№ 0012345")->assertSee("01.11–30.11.2026")
+            ->assertSee("Период: 01.11.2026 - 30.11.2026")->assertSee("590,00");
+    }
+
+    public function test_issue_now_preview_shows_the_utility_line(): void
+    {
+        $lease = $this->lease("Анна Измислена", "2026-01-10");
+        $this->epayBill(90.00);
+        $this->post("/charges/generate", ["month" => "2026-12"]);
+
+        $this->get("/lease-contracts/{$lease->id}/issue?month=2026-12")->assertOk()
+            ->assertSee("№ 0012345")->assertSee("01.11–30.11.2026")->assertSee("90,00");
+    }
 }

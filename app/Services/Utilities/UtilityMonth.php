@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
  *
  * - месецът взима всички внесени сметки, които не са в работната таблица на
  *   друг месец (една сметка е само в една таблица; там остават и махнатите,
- *   и намалените — разликата е неначислена, за част 5);
+ *   и намалените — разликата е неначислена, за част 5) и не са издадени в
+ *   друг месец с „Издай сега“ преди генерирането;
  * - всяка се дели по своя период (калкулаторът, част 3), със срока за
  *   последно начисление спрямо М;
  * - фиксираните абонати са за месеца преди М;
@@ -41,6 +42,12 @@ final class UtilityMonth
                 ->whereColumn('d.paid_utility_bill_id', 'paid_utility_bills.id')
                 ->whereColumn('d.company_id', 'paid_utility_bills.company_id')
                 ->whereDate('d.month', '<>', $month->toDateString()))
+            // …и не е издадена в друг месец с „Издай сега“ преди генерирането (без ред в таблицата).
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('statement_lines as l')
+                ->join('statements as s', 's.id', '=', 'l.statement_id')
+                ->whereColumn('l.paid_utility_bill_id', 'paid_utility_bills.id')
+                ->whereColumn('l.company_id', 'paid_utility_bills.company_id')
+                ->whereDate('s.month', '<>', $month->toDateString()))
             ->with(['account' => fn ($q) => $q->withoutGlobalScope(RegistryVisibilityScope::class)->with('provider')])
             ->orderBy('paid_at')->orderBy('id')
             ->get();
