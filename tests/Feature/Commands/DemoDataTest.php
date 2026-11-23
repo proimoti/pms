@@ -210,6 +210,15 @@ class DemoDataTest extends TestCase
         $this->assertTrue($accounts->contains(fn ($a) => $a->properties->pluck('share')->all() === ['33.33', '33.33', '33.34']));
         $this->assertTrue($accounts->contains(fn ($a) => str_starts_with((string) $a->number, '00')), 'номер с нули отпред');
 
+        // Общ фонд за вход с няколко имота; фиксираният абонат е към него, общият ток се плаща от него.
+        $fund = \App\Models\Fund::query()->withoutGlobalScopes()->where('company_id', $company->id)->where('name', 'Вход (измислен)')->sole();
+        $this->assertNotNull($fund->analytic);
+        $this->assertGreaterThan(1, count($fund->propertyIds()));
+        $this->assertTrue($accounts->filter(fn ($a) => $a->isFixed())->every(fn ($a) => $a->fund_id === $fund->id));
+        $light = $accounts->first(fn ($a) => $a->paid_from_fund);
+        $this->assertSame($fund->id, $light->fund_id);
+        $this->assertFalse($light->isFixed());
+
         $folder = "demo/{$company->id}";
         Storage::disk('local')->assertExists(["{$folder}/easypay-demo.xlsx", "{$folder}/epay-demo.xlsx"]);
 
@@ -219,7 +228,9 @@ class DemoDataTest extends TestCase
 
         $easypay = $importer->preview(Storage::disk('local')->path("{$folder}/easypay-demo.xlsx"));
         $this->assertSame('easypay', $easypay->source);
-        $this->assertCount(7, $easypay->bills);
+        $this->assertCount(8, $easypay->bills, '7 сметки по имоти и общият ток на входа, платен от фонда');
+        $fromFund = collect($easypay->bills)->first(fn ($b) => $b->account->id === $light->id);
+        $this->assertSame([], $fromFund->parts, 'сметката от фонда не се дели');
         $this->assertSame(['unknown_number'], array_map(fn ($i) => $i->reason, $easypay->issues));
         $this->assertCount(1, $easypay->duplicates);
 

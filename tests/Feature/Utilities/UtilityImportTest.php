@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use Tests\Feature\Contracts\ContractTestCase;
+use Tests\Support\Funds;
 use Tests\Support\UtilityFiles;
 
 /**
@@ -32,7 +33,7 @@ use Tests\Support\UtilityFiles;
  */
 class UtilityImportTest extends ContractTestCase
 {
-    use UtilityFiles;
+    use Funds, UtilityFiles;
 
     private UtilityImporter $importer;
 
@@ -304,7 +305,7 @@ class UtilityImportTest extends ContractTestCase
     {
         $fixed = app(UtilityAccountService::class)->create([
             'provider_id' => $this->power->id, 'number' => '555', 'kind' => 'common', 'billing' => 'fixed', 'fixed_amount' => '10',
-            'valid_from' => '2026-01-01', 'properties' => [['property_id' => $this->a->id]],
+            'valid_from' => '2026-01-01', 'fund_id' => $this->fund([$this->a])->id, 'properties' => [['property_id' => $this->a->id]],
         ]);
         $ended = app(UtilityAccountService::class)->create([
             'provider_id' => $this->power->id, 'number' => '666', 'kind' => 'electricity', 'billing' => 'actual',

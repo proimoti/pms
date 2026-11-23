@@ -46,6 +46,9 @@
                         <td>{{ $bill->row->providerName }}</td>
                         <td>{{ $bill->account->number }}</td>
                         <td>
+                            @if ($bill->account->paid_from_fund)
+                                {{ __('utilities.import.from_fund', ['fund' => $bill->account->fund?->name]) }}
+                            @endif
                             @foreach ($bill->parts as $propertyId => $amount)
                                 № {{ $properties[$propertyId] ?? $propertyId }}@if (count($bill->parts) > 1): {{ \App\Support\Format::money($amount) }}@endif{{ $loop->last ? '' : ',' }}
                             @endforeach

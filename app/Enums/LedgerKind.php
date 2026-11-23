@@ -8,5 +8,7 @@ enum LedgerKind: string
     case Issue = 'issue';           // издаване на месеца или „Издай сега“
     case Correction = 'correction'; // корекция за същия месец (разлика спрямо договорите)
     case Manual = 'manual';         // ръчна корекция с причина
-    case UtilityPaid = 'utility_paid'; // внесена платена битова сметка (407)
+    case UtilityPaid = 'utility_paid'; // внесена платена битова сметка (407 на имота)
+    case FundIncome = 'fund_income';   // приход във фонда: фиксирана такса (407 на фонда, −)
+    case FundExpense = 'fund_expense'; // разход от фонда: сметка, платена от фонда (407 на фонда, +)
 }

@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Абонат (PROJECT.md, т. 3.4 „Битови сметки, уточнения“, т. 5.3, 21.11.2026):
  * доставчик и номер, вид, реален или фиксиран, период на потребление (ден от
  * и ден до в месеца), имот или имоти със съотношение и дати на действие.
+ * Фиксираният абонат е към общ фонд; реален абонат може да е „плаща се от
+ * фонд“ (PROJECT.md, „Общ фонд“, 22–23.11.2026): сметката му не се дели.
  * Записва се през UtilityAccountService (там са правилата).
  *
  * Служител с обхват „само прикачените“ вижда целия абонат, ако поне един
@@ -27,7 +29,7 @@ class UtilityAccount extends Model
     protected $table = 'utility_accounts';
 
     protected $fillable = [
-        'provider_id', 'number', 'kind', 'billing', 'fixed_amount',
+        'provider_id', 'fund_id', 'number', 'kind', 'billing', 'paid_from_fund', 'fixed_amount',
         'period_start_day', 'period_end_day', 'valid_from', 'valid_to', 'note',
     ];
 
@@ -36,6 +38,7 @@ class UtilityAccount extends Model
         return [
             'kind' => UtilityKind::class,
             'billing' => UtilityBilling::class,
+            'paid_from_fund' => 'boolean',
             'fixed_amount' => 'decimal:2',
             'period_start_day' => 'integer',
             'period_end_day' => 'integer',
@@ -77,6 +80,12 @@ class UtilityAccount extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(Provider::class);
+    }
+
+    /** Общият фонд: задължителен при фиксиран абонат и при „плаща се от фонд“. */
+    public function fund(): BelongsTo
+    {
+        return $this->belongsTo(Fund::class);
     }
 
     /** Имотите по реда им; последният поема остатъка. */

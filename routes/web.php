@@ -12,6 +12,7 @@ use App\Http\Controllers\Registry\BrokerController;
 use App\Http\Controllers\Registry\OwnerController;
 use App\Http\Controllers\Registry\PropertyController;
 use App\Http\Controllers\Registry\ProviderController;
+use App\Http\Controllers\Registry\FundController;
 use App\Http\Controllers\Registry\UtilityAccountController;
 use App\Http\Controllers\Utilities\UtilityImportController;
 use App\Http\Controllers\Utilities\UtilityIssueController;
@@ -68,6 +69,16 @@ Route::middleware('auth')->group(function () {
         Route::put('utility-accounts/{account}', [UtilityAccountController::class, 'update'])->middleware($write)->name('utility-accounts.update');
         Route::post('utility-accounts/{account}/archive', [UtilityAccountController::class, 'archive'])->middleware($write)->name('utility-accounts.archive');
         Route::post('utility-accounts/{account}/restore', [UtilityAccountController::class, 'restore'])->middleware($write)->name('utility-accounts.restore');
+
+        // Общи фондове (PROJECT.md, „Общ фонд“, 22–23.11.2026).
+        Route::get('funds', [FundController::class, 'index'])->name('funds.index');
+        Route::get('funds/create', [FundController::class, 'create'])->middleware($write)->name('funds.create');
+        Route::post('funds', [FundController::class, 'store'])->middleware($write)->name('funds.store');
+        Route::get('funds/{fund}', [FundController::class, 'show'])->name('funds.show');
+        Route::get('funds/{fund}/edit', [FundController::class, 'edit'])->middleware($write)->name('funds.edit');
+        Route::put('funds/{fund}', [FundController::class, 'update'])->middleware($write)->name('funds.update');
+        Route::post('funds/{fund}/archive', [FundController::class, 'archive'])->middleware($write)->name('funds.archive');
+        Route::post('funds/{fund}/restore', [FundController::class, 'restore'])->middleware($write)->name('funds.restore');
 
         // Договори за управление (PROJECT.md, т. 2 „Договори“, „Поправки“).
         Route::get('owner-contracts', [OwnerContractController::class, 'index'])->name('owner-contracts.index');

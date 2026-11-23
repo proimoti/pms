@@ -114,11 +114,12 @@ class UtilityScreensTest extends ScreenTestCase
     public function test_fixed_account_shows_its_amount(): void
     {
         $property = $this->property(['number' => 7]);
+        $fund = app(\App\Services\Utilities\FundService::class)->create(['company_id' => $this->company->id, 'name' => 'Вход (измислен)', 'analytic' => 'ВХ-1', 'properties' => [$property->id]]);
         $this->actingAs($this->staff());
 
         $this->post('/utility-accounts', [
             'kind' => 'common', 'billing' => 'fixed', 'fixed_amount' => '12,50', 'valid_from' => '01.01.2026',
-            'properties' => [['property_id' => $property->id]],
+            'fund_id' => $fund->id, 'properties' => [['property_id' => $property->id]],
         ])->assertSessionHasNoErrors();
 
         $account = UtilityAccount::query()->sole();

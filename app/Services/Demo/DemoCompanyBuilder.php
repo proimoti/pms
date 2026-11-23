@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Services\Charges\Month;
 use App\Services\LeaseContractService;
 use App\Services\OwnerContractService;
+use App\Services\Utilities\FundService;
 use App\Services\Utilities\UtilityAccountService;
 use App\Support\Xlsx\XlsxWriter;
 use Carbon\CarbonImmutable;
@@ -53,6 +54,7 @@ class DemoCompanyBuilder
         private readonly OwnerContractService $managements,
         private readonly LeaseContractService $leases,
         private readonly UtilityAccountService $utilityAccounts,
+        private readonly FundService $funds,
     ) {}
 
     /** @return array{company: Company, month: string, cases: list<string>, files: list<string>} */
@@ -255,7 +257,8 @@ class DemoCompanyBuilder
 
     /**
      * Битови сметки (PROJECT.md, т. 3.4 и т. 5.3): доставчици с имената им във
-     * файловете, абонати (номер с нули отпред, общ 50/50 и 33,33/33,33/33,34, фиксиран)
+     * файловете, абонати (номер с нули отпред, общ 50/50 и 33,33/33,33/33,34, фиксиран
+     * към общ фонд за вход, общ ток „плаща се от фонд“)
      * и два измислени файла за внос, платени в месеца преди М. Файловете са в
      * папката demo/{фирма}/ на локалното хранилище (storage/app/private).
      *
@@ -286,8 +289,16 @@ class DemoCompanyBuilder
         $account($heating, '2000045678', 'heating', [
             ['property_id' => $p(8), 'share' => '33.33'], ['property_id' => $p(10), 'share' => '33.33'], ['property_id' => $p(11), 'share' => '33.34'],
         ]);
-        // Фиксиран абонат (такса вход): без номер, 15 € на месец, по дни като наема.
-        $account(null, null, 'common', [['property_id' => $p(1)]], ['billing' => 'fixed', 'fixed_amount' => '15']);
+        // Общ фонд за вход с три имота (PROJECT.md, „Общ фонд“, 22–23.11.2026).
+        $entrance = $this->funds->create([
+            'company_id' => $this->company->id, 'name' => 'Вход (измислен)', 'analytic' => 'ВХ-ДЕМО',
+            'note' => 'Измислен вход за демонстрация.', 'properties' => [$p(1), $p(3), $p(4)],
+        ]);
+        // Фиксиран абонат (такса вход) към фонда: без номер, 15 € на месец, по дни като наема.
+        $account(null, null, 'common', [['property_id' => $p(1)]], ['billing' => 'fixed', 'fixed_amount' => '15', 'fund_id' => $entrance->id, 'note' => 'Такса вход']);
+        // Общият ток на входа: реална сметка, платена от фонда (не се дели на наемателите).
+        $account($power, '0090001', 'electricity', [['property_id' => $p(1)], ['property_id' => $p(3)], ['property_id' => $p(4)]],
+            ['paid_from_fund' => '1', 'fund_id' => $entrance->id, 'note' => 'Общ ток на входа']);
 
         return $this->importFiles();
     }
@@ -305,6 +316,7 @@ class DemoCompanyBuilder
             $easypay[] = [$base + $i, $at(5, '10:'.str_pad((string) $i, 2, '0', STR_PAD_LEFT)), 4401, 10000 + $i, 'IZMISLENO ELEKTRO AD', $amount];
         }
         $easypay[] = [$base + 20, $at(6, '09:00'), 4401, 5000123, 'IZMISLENA VODA EAD', 35.51];  // общ 50/50
+        $easypay[] = [$base + 22, $at(6, '09:10'), 4401, 90001, 'IZMISLENO ELEKTRO AD', 14.60];   // общ ток на входа, от фонда
         $easypay[] = [$base + 21, $at(6, '09:05'), 4401, 99999, 'IZMISLENO ELEKTRO AD', 18.00]; // непознат номер
         $easypay[] = [$base + 1, $at(5, '10:01'), 4401, 10001, 'IZMISLENO ELEKTRO AD', 48.20];  // повторен ред
 

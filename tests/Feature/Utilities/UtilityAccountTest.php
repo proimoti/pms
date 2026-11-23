@@ -13,6 +13,7 @@ use App\Services\Utilities\UtilityAccountService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
 use Tests\Feature\Contracts\ContractTestCase;
+use Tests\Support\Funds;
 
 /**
  * Абонати (PROJECT.md, т. 3.4 „Битови сметки, уточнения“ и т. 5.3, 21.11.2026):
@@ -23,6 +24,8 @@ use Tests\Feature\Contracts\ContractTestCase;
  */
 class UtilityAccountTest extends ContractTestCase
 {
+    use Funds;
+
     private UtilityAccountService $accounts;
 
     private Provider $provider;
@@ -92,6 +95,7 @@ class UtilityAccountTest extends ContractTestCase
 
         $account = $this->accounts->create($this->data([$property], [
             'provider_id' => null, 'number' => null, 'kind' => 'common', 'billing' => 'fixed', 'fixed_amount' => '15,50',
+            'fund_id' => $this->fund([$property])->id,
         ]));
 
         $this->assertSame(UtilityBilling::Fixed, $account->billing);
@@ -198,7 +202,7 @@ class UtilityAccountTest extends ContractTestCase
 
         $this->accounts->create($this->data([$property]));
         $this->accounts->create($this->data([$property], ['provider_id' => $other->id, 'number' => '777']));
-        $this->accounts->create($this->data([$property], ['provider_id' => null, 'number' => null, 'billing' => 'fixed', 'fixed_amount' => '10']));
+        $this->accounts->create($this->data([$property], ['provider_id' => null, 'number' => null, 'billing' => 'fixed', 'fixed_amount' => '10', 'fund_id' => $this->fund([$property])->id]));
 
         $this->assertSame(3, UtilityAccount::query()->count());
     }

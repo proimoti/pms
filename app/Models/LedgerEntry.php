@@ -52,6 +52,16 @@ class LedgerEntry extends Model
         return $this->belongsTo(Property::class);
     }
 
+    public function fund(): BelongsTo
+    {
+        return $this->belongsTo(Fund::class);
+    }
+
+    public function paidUtilityBill(): BelongsTo
+    {
+        return $this->belongsTo(PaidUtilityBill::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

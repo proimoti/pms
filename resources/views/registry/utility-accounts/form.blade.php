@@ -39,6 +39,25 @@
 
         <div class="grid">
             <div>
+                <label for="fund_id">{{ __('utilities.fields.fund') }}</label>
+                <select id="fund_id" name="fund_id">
+                    <option value=""></option>
+                    @foreach ($funds as $fund)
+                        <option value="{{ $fund->id }}" @selected((string) old('fund_id', $account->fund_id) === (string) $fund->id)>{{ $fund->name }}@if ($fund->analytic) ({{ $fund->analytic }})@endif</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label style="margin-top: 30px; font-weight: normal;">
+                    <input type="checkbox" name="paid_from_fund" value="1" @checked(old('_token') !== null ? (bool) old('paid_from_fund') : (bool) $account->paid_from_fund)>
+                    {{ __('utilities.fields.paid_from_fund') }}
+                </label>
+            </div>
+        </div>
+        <p class="muted">{{ __('utilities.hints.fund') }}</p>
+
+        <div class="grid">
+            <div>
                 <label for="provider_id">{{ __('utilities.fields.provider') }}</label>
                 <select id="provider_id" name="provider_id">
                     <option value=""></option>

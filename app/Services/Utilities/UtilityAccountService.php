@@ -4,6 +4,7 @@ namespace App\Services\Utilities;
 
 use App\Enums\UtilityBilling;
 use App\Enums\UtilityKind;
+use App\Models\Fund;
 use App\Models\Property;
 use App\Models\Provider;
 use App\Models\UtilityAccount;
@@ -27,7 +28,13 @@ use Illuminate\Validation\ValidationException;
  * - период: ден от (празно = 1) и ден до (празно = последният ден), 1–31;
  * - поне един имот; при един имот делът е 100 %, при няколко всеки е над 0,
  *   с до два знака, и сборът е точно 100 % (решено 22.11.2026); стотинките
- *   от закръглянето при вноса отиват към последния имот.
+ *   от закръглянето при вноса отиват към последния имот;
+ * - общ фонд (PROJECT.md, „Общ фонд“, 22–23.11.2026): фиксираният абонат е
+ *   задължително към фонд; реален абонат може да е „плаща се от фонд“ (тогава
+ *   е към фонд, сметката не се дели и дяловете не се попълват); обикновеният
+ *   реален е без фонд. Фондът е активен и на фирмата; имотите на абоната са
+ *   сред имотите на фонда. След първата внесена сметка „плаща се от фонд“ и
+ *   фондът на реалния абонат се заключват.
  */
 final class UtilityAccountService
 {
@@ -45,7 +52,8 @@ final class UtilityAccountService
     {
         $errors = new MessageBag;
         $values = $this->values($account, $data, $errors);
-        $lines = $this->lines($data['properties'] ?? [], $errors);
+        $lines = $this->lines($data['properties'] ?? [], $errors, $values['paid_from_fund']);
+        $this->linesInFund($values['fund_id'], $lines, $errors);
 
         if ($errors->isNotEmpty()) {
             throw ValidationException::withMessages($errors->toArray());
@@ -113,6 +121,31 @@ final class UtilityAccountService
             }
         }
 
+        // Общ фонд
+        $fromFund = $billing === UtilityBilling::Actual && $this->truthy($data['paid_from_fund'] ?? null);
+        $fundId = $this->blank($data['fund_id'] ?? null) ? null : (int) $data['fund_id'];
+        if (! $fixed && ! $fromFund) {
+            $fundId = null; // обикновеният реален абонат е без фонд
+        } elseif ($fundId === null) {
+            $errors->add('fund_id', __('utilities.errors.fund_required'));
+        } else {
+            $fund = Fund::query()->find($fundId);
+            if ($fund === null) {
+                $errors->add('fund_id', __('utilities.errors.fund_not_found'));
+                $fundId = null;
+            } elseif ($fund->isArchived() && (int) $account->fund_id !== $fundId) {
+                $errors->add('fund_id', __('utilities.errors.fund_archived'));
+            }
+        }
+        // След първата сметка реалният абонат не сменя „плаща се от фонд“ и фонда (сметките са записани по него).
+        if ($account->exists && ! $account->isFixed() && $billing === UtilityBilling::Actual && $account->hasPaidBills()) {
+            if ($fromFund !== (bool) $account->paid_from_fund) {
+                $errors->add('paid_from_fund', __('utilities.errors.paid_from_fund_locked'));
+            } elseif ($fromFund && $fundId !== (int) $account->fund_id) {
+                $errors->add('fund_id', __('utilities.errors.fund_locked'));
+            }
+        }
+
         // Фиксирана сума
         $amount = null;
         if ($fixed) {
@@ -144,6 +177,8 @@ final class UtilityAccountService
 
         $values = [
             'provider_id' => $providerId,
+            'fund_id' => $fundId,
+            'paid_from_fund' => $fromFund,
             'number' => $number,
             'kind' => $kind,
             'billing' => $billing,
@@ -164,9 +199,10 @@ final class UtilityAccountService
 
     /**
      * Имотите със съотношение: [[property_id, share], ...] по реда им.
-     * Празните редове от формата се прескачат.
+     * Празните редове от формата се прескачат. При „плаща се от фонд“ сметката
+     * не се дели: дяловете не се попълват (share е празно).
      */
-    private function lines(array $rows, MessageBag $errors): array
+    private function lines(array $rows, MessageBag $errors, bool $withoutShares = false): array
     {
         $rows = array_values(array_filter($rows, fn ($row) => is_array($row) && ! $this->blank($row['property_id'] ?? null)));
 
@@ -185,6 +221,10 @@ final class UtilityAccountService
         $found = Property::query()->whereNull('archived_at')->whereKey($ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
         if (array_diff($ids, $found) !== []) {
             $errors->add('properties', __('utilities.errors.property_not_found'));
+        }
+
+        if ($withoutShares) {
+            return array_map(fn (int $id) => [$id, null], $ids);
         }
 
         if (count($rows) === 1) {
@@ -210,6 +250,26 @@ final class UtilityAccountService
         }
 
         return $lines;
+    }
+
+    /** Имотите на абоната са сред имотите на фонда. */
+    private function linesInFund(?int $fundId, array $lines, MessageBag $errors): void
+    {
+        if ($fundId === null || $lines === [] || $errors->has('fund_id')) {
+            return;
+        }
+
+        $fund = Fund::query()->find($fundId);
+        $outside = array_diff(array_map(fn ($line) => $line[0], $lines), $fund?->propertyIds() ?? []);
+        if ($outside !== []) {
+            $numbers = Property::query()->withoutGlobalScopes()->whereKey($outside)->orderBy('number')->pluck('number')->implode(', ');
+            $errors->add('properties', __('utilities.errors.property_outside_fund', ['numbers' => $numbers]));
+        }
+    }
+
+    private function truthy($value): bool
+    {
+        return in_array($value, [true, 1, '1', 'on', 'true', 'yes'], true);
     }
 
     /** Фирмата на абоната: на влезлия потребител, или подадената (команди на сървъра). */

@@ -15,6 +15,13 @@
             {{ __('utilities.billing.'.$account->billing->value) }}
             @if ($account->isFixed()) · {{ \App\Support\Format::money($account->fixed_amount) }} € @endif
         </dd>
+        @if ($account->fund_id)
+            <dt>{{ __('utilities.fields.fund') }}</dt>
+            <dd>
+                <a href="/funds/{{ $account->fund_id }}">{{ $account->fund?->name }}</a>
+                @if ($account->paid_from_fund) · {{ __('utilities.fields.paid_from_fund') }} @endif
+            </dd>
+        @endif
         @unless ($account->isFixed())
             <dt>{{ __('utilities.fields.period') }}</dt>
             <dd>{{ $account->period_start_day }} – {{ $account->period_end_day ?? __('utilities.hints.last_day') }}</dd>
@@ -30,7 +37,7 @@
             <thead>
             <tr>
                 <th>{{ __('utilities.fields.property') }}</th>
-                <th class="num">{{ __('utilities.fields.share') }}</th>
+                @unless ($account->paid_from_fund)<th class="num">{{ __('utilities.fields.share') }}</th>@endunless
             </tr>
             </thead>
             <tbody>
@@ -41,13 +48,13 @@
                             <a href="/properties/{{ $line->property_id }}">№ {{ $line->property->number }}</a> {{ \App\Support\Address::format($line->property) }}
                         @endif
                     </td>
-                    <td class="num">{{ \App\Support\Format::percent($line->share) }}</td>
+                    @unless ($account->paid_from_fund)<td class="num">{{ \App\Support\Format::percent($line->share) }}</td>@endunless
                 </tr>
             @endforeach
             </tbody>
         </table>
     </div>
-    @if ($account->properties->count() > 1)
+    @if ($account->properties->count() > 1 && ! $account->paid_from_fund)
         <p class="muted">{{ __('utilities.hints.remainder', ['number' => $account->properties->last()->property?->number]) }}</p>
     @endif
 

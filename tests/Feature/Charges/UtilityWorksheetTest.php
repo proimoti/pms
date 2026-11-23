@@ -18,6 +18,7 @@ use App\Services\Utilities\UtilityAccountService;
 use App\Services\Utilities\UtilityImporter;
 use Illuminate\Validation\ValidationException;
 use Tests\Feature\Contracts\ContractTestCase;
+use Tests\Support\Funds;
 use Tests\Support\UtilityFiles;
 
 /**
@@ -35,7 +36,7 @@ use Tests\Support\UtilityFiles;
  */
 class UtilityWorksheetTest extends ContractTestCase
 {
-    use UtilityFiles;
+    use Funds, UtilityFiles;
 
     private MonthWorksheet $sheet;
 
@@ -89,7 +90,7 @@ class UtilityWorksheetTest extends ContractTestCase
     {
         return app(UtilityAccountService::class)->create([
             'kind' => 'common', 'billing' => 'fixed', 'fixed_amount' => $amount, 'valid_from' => '2026-01-01',
-            'properties' => [['property_id' => $property->id]],
+            'fund_id' => $this->fund([$property])->id, 'properties' => [['property_id' => $property->id]],
         ]);
     }
 

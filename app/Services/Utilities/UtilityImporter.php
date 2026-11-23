@@ -30,6 +30,9 @@ use LogicException;
  *   от нулите отпред; общата сметка се дели по съотношението, остатъкът
  *   (от закръгляне или сбор под 100 %) отива към последния имот;
  * - всяка част е запис по 407 за имота, в месеца на плащане;
+ * - сметка на абонат „плаща се от фонд“ (PROJECT.md, „Общ фонд“, 22–23.11.2026)
+ *   не се дели: без части по имоти, един запис „разход от фонда“ (407 на
+ *   фонда); не стига до наемателите и до „Неразпределени“;
  * - двоен внос: номерът на превода (EasyPay) или системният код (ePay) се
  *   приема веднъж във фирмата (и в базата); вносът заключва фирмата;
  * - всичко неразпознато е „за решение“; приходите в ePay се пропускат тихо,
@@ -263,6 +266,10 @@ final class UtilityImporter
             return $issue('inactive_account');
         }
 
+        if ($account->paid_from_fund) {
+            return new PreviewBill($row, $account, [], []); // не се дели: разход от фонда
+        }
+
         [$parts, $shares] = self::split($row->amountCents, $account);
 
         return new PreviewBill($row, $account, $parts, $shares);
@@ -293,7 +300,7 @@ final class UtilityImporter
         return [$parts, $shares];
     }
 
-    /** Записва платената сметка, частите ѝ и записите по 407. */
+    /** Записва платената сметка, частите ѝ и записите по 407 (или разхода от фонда). */
     private function book(int $batchId, string $source, PreviewBill $preview): PaidUtilityBill
     {
         $row = $preview->row;
@@ -304,6 +311,12 @@ final class UtilityImporter
             'provider_name' => $row->providerName, 'file_number' => $row->number,
             'description' => $row->description === null ? null : mb_substr($row->description, 0, 500), 'details' => $row->details,
         ]);
+
+        if ($preview->account->paid_from_fund) {
+            app(FundLedger::class)->expense($bill, $preview->account);
+
+            return $bill;
+        }
 
         foreach ($preview->parts as $propertyId => $amount) {
             PaidUtilityBillPart::query()->create([

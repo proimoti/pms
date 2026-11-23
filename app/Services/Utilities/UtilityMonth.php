@@ -20,7 +20,8 @@ use Illuminate\Support\Facades\DB;
  *   и намалените — разликата е неначислена, за част 5);
  * - всяка се дели по своя период (калкулаторът, част 3), със срока за
  *   последно начисление спрямо М;
- * - фиксираните абонати са за месеца преди М.
+ * - фиксираните абонати са за месеца преди М;
+ * - сметките „плаща се от фонд“ не влизат: те са разход на фонда.
  */
 final class UtilityMonth
 {
@@ -33,6 +34,9 @@ final class UtilityMonth
 
         return PaidUtilityBill::query()->withoutGlobalScope(RegistryVisibilityScope::class)
             ->where('company_id', $companyId)
+            // Сметките „плаща се от фонд“ не се делят на наемателите (PROJECT.md, „Общ фонд“).
+            ->whereIn('utility_account_id', fn ($q) => $q->select('id')->from('utility_accounts')
+                ->where('company_id', $companyId)->where('paid_from_fund', false))
             ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('charge_drafts as d')
                 ->whereColumn('d.paid_utility_bill_id', 'paid_utility_bills.id')
                 ->whereColumn('d.company_id', 'paid_utility_bills.company_id')

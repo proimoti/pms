@@ -13,6 +13,7 @@ use App\Services\Utilities\UtilityImporter;
 use App\Services\Utilities\UtilitySplit;
 use Carbon\CarbonImmutable;
 use Tests\Feature\Contracts\ContractTestCase;
+use Tests\Support\Funds;
 use Tests\Support\UtilityFiles;
 
 /**
@@ -33,7 +34,7 @@ use Tests\Support\UtilityFiles;
  */
 class UtilityCalculatorTest extends ContractTestCase
 {
-    use UtilityFiles;
+    use Funds, UtilityFiles;
 
     private UtilityCalculator $calculator;
 
@@ -322,10 +323,14 @@ class UtilityCalculatorTest extends ContractTestCase
 
     private function fixedAccount(Property $property, string $amount, array $overrides = []): UtilityAccount
     {
-        return app(UtilityAccountService::class)->create(array_merge([
+        $data = array_merge([
             'kind' => 'common', 'billing' => 'fixed', 'fixed_amount' => $amount, 'valid_from' => '2026-01-01',
             'properties' => [['property_id' => $property->id]],
-        ], $overrides));
+        ], $overrides);
+        // Всеки фиксиран абонат е към фонд с неговите имоти („Общ фонд“, 22.11.2026).
+        $data['fund_id'] = $this->fund(array_map(fn ($line) => Property::query()->findOrFail($line['property_id']), $data['properties']))->id;
+
+        return app(UtilityAccountService::class)->create($data);
     }
 
     /**

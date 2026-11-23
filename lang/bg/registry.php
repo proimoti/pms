@@ -34,6 +34,7 @@ return [
         'upcoming-charges' => 'Предстоящи',
         'providers' => 'Доставчици',
         'utility-accounts' => 'Абонати',
+        'funds' => 'Общи фондове',
         'utility-imports' => 'Внос на сметки',
         'utility-issues' => 'За решение (внос)',
     ],
@@ -47,6 +48,7 @@ return [
         'lease-contracts' => 'Нов договор за наем',
         'providers' => 'Нов доставчик',
         'utility-accounts' => 'Нов абонат',
+        'funds' => 'Нов фонд',
     ],
     'one' => [
         'properties' => 'Имот',
@@ -58,6 +60,7 @@ return [
         'lease-contracts' => 'Договор за наем',
         'providers' => 'Доставчик',
         'utility-accounts' => 'Абонат',
+        'funds' => 'Фонд',
     ],
 
     // Действия и надписи
@@ -73,7 +76,7 @@ return [
         'registry' => ['properties', 'owners', 'beneficiaries', 'tenants', 'brokers'],
         'contracts' => ['owner-contracts', 'lease-contracts'],
         'charges' => ['charges', 'upcoming-charges', 'statements'],
-        'utilities' => ['utility-imports', 'utility-issues', 'utility-accounts', 'providers'],
+        'utilities' => ['utility-imports', 'utility-issues', 'utility-accounts', 'funds', 'providers'],
     ],
     // Разделите само за служител, който управлява начисленията („четене и запис“ и „всички имоти“).
     'menu_manage_only' => ['utility-imports', 'utility-issues'],

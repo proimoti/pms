@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Registry;
 
+use App\Models\Fund;
 use App\Models\Property;
 use App\Models\Provider;
 use App\Models\UtilityAccount;
@@ -72,7 +73,7 @@ class UtilityAccountController extends RegistryController
 
     public function show(UtilityAccount $account): View
     {
-        $account->load(['provider', 'properties.property']);
+        $account->load(['provider', 'fund', 'properties.property']);
 
         return view('registry.utility-accounts.show', ['account' => $account]);
     }
@@ -114,6 +115,7 @@ class UtilityAccountController extends RegistryController
             'account' => $account,
             'rows' => $rows,
             'providers' => Provider::query()->active()->orderBy('name')->get(),
+            'funds' => Fund::query()->where(fn ($q) => $q->whereNull('archived_at')->orWhere('id', $account->fund_id))->orderBy('name')->get(),
             'properties' => Property::query()->active()->orderBy('number')->get(),
         ]);
     }
@@ -121,7 +123,7 @@ class UtilityAccountController extends RegistryController
     private function input(Request $request): array
     {
         return $request->only([
-            'provider_id', 'number', 'kind', 'billing', 'fixed_amount',
+            'provider_id', 'fund_id', 'paid_from_fund', 'number', 'kind', 'billing', 'fixed_amount',
             'period_start_day', 'period_end_day', 'valid_from', 'valid_to', 'note',
         ]) + ['properties' => (array) $request->input('properties', [])];
     }
