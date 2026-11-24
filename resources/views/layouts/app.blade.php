@@ -24,7 +24,8 @@
         nav.side a.item[aria-current="page"] { background: var(--menu-current); color: #fff; font-weight: 600; }
         nav.side .side-foot { margin-top: auto; padding: 10px 12px 0; border-top: 1px solid var(--menu-line); display: flex; flex-direction: column; gap: 1px; }
         nav.side .side-foot .who { font-weight: 600; color: #fff; }
-        nav.side .side-foot .firm { font-size: 13px; color: var(--menu-soft); }
+        nav.side .side-foot .firm { font-size: 13px; color: var(--menu-soft); text-decoration: none; }
+        nav.side .side-foot a.firm:hover { color: #fff; text-decoration: underline; }
         nav.side .side-foot form { margin: 6px 0 0; }
         nav.side .side-foot button { margin: 0; padding: 0; border: 0; background: none; color: var(--menu-link); font-size: 14px; cursor: pointer; }
         nav.side .side-foot button:hover { text-decoration: underline; }
@@ -186,7 +187,7 @@
         @endforeach
         <div class="side-foot">
             <span class="who">{{ auth()->user()->name }}</span>
-            <span class="firm">{{ auth()->user()->company?->name }}</span>
+            @if (auth()->user()->is_company_admin)<a class="firm" href="/company">{{ auth()->user()->company?->name }}</a>@else<span class="firm">{{ auth()->user()->company?->name }}</span>@endif
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit">{{ __('registry.logout') }}</button>

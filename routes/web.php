@@ -38,6 +38,18 @@ Route::middleware('auth')->group(function () {
     // Регистър (PROJECT.md, т. 2): само за служители; промени само с „четене и запис“.
     // Изтриване няма, само архивиране.
     Route::middleware(EnsureRegistryAccess::class)->group(function () {
+        // „Фирма“ (24.11.2026): само администраторът на фирмата (проверката е в контролера и в моделите).
+        Route::get('company', [\App\Http\Controllers\CompanyController::class, 'show'])->name('company.show');
+        Route::get('company/edit', [\App\Http\Controllers\CompanyController::class, 'edit'])->name('company.edit');
+        Route::put('company', [\App\Http\Controllers\CompanyController::class, 'update'])->name('company.update');
+        Route::get('company/bank-accounts/create', [\App\Http\Controllers\CompanyController::class, 'createAccount'])->name('company.accounts.create');
+        Route::post('company/bank-accounts', [\App\Http\Controllers\CompanyController::class, 'storeAccount'])->name('company.accounts.store');
+        Route::get('company/bank-accounts/{account}/edit', [\App\Http\Controllers\CompanyController::class, 'editAccount'])->name('company.accounts.edit');
+        Route::put('company/bank-accounts/{account}', [\App\Http\Controllers\CompanyController::class, 'updateAccount'])->name('company.accounts.update');
+        Route::post('company/bank-accounts/{account}/for-statements', [\App\Http\Controllers\CompanyController::class, 'forStatements'])->name('company.accounts.for-statements');
+        Route::post('company/bank-accounts/{account}/archive', [\App\Http\Controllers\CompanyController::class, 'archiveAccount'])->name('company.accounts.archive');
+        Route::post('company/bank-accounts/{account}/restore', [\App\Http\Controllers\CompanyController::class, 'restoreAccount'])->name('company.accounts.restore');
+
         $sections = [
             'properties' => PropertyController::class,
             'owners' => OwnerController::class,
