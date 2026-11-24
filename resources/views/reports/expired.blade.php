@@ -3,7 +3,7 @@
 @use('App\Support\Format')
 
 @section('title', __('reports.expired.title'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     <h1>{{ __('reports.expired.title') }}</h1>

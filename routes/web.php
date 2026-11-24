@@ -31,7 +31,7 @@ Route::get('/', function () {
 // (config/fortify.php, app/Providers/FortifyServiceProvider.php).
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', fn () => view('dashboard'))->name('dashboard');
+    Route::get('/dashboard', \App\Http\Controllers\HomeController::class)->name('dashboard');
 
     Route::get('/two-factor/setup', fn () => view('auth.two-factor-setup'))->name('two-factor.setup');
 

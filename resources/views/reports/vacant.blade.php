@@ -3,7 +3,7 @@
 @use('App\Support\Format')
 
 @section('title', __('reports.vacant.title'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     <h1>{{ __('reports.vacant.title') }}</h1>

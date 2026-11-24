@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('registry.sections.properties'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => 'properties'])
@@ -16,13 +16,13 @@
                     <th class="num">{{ __('registry.fields.number') }}</th>
                     <th>{{ __('registry.fields.property_type_id') }}</th>
                     <th>{{ __('registry.fields.address') }}</th>
-                    <th class="num">{{ __('registry.fields.area') }}</th>
+                    <th class="num">{{ __('registry.columns.area') }}</th>
                     <th>{{ __('registry.fields.broker_id') }}</th>
                 </tr>
                 </thead>
                 <tbody>
                 @foreach ($properties as $property)
-                    <tr>
+                    <tr data-href="/properties/{{ $property->id }}">
                         <td class="num"><a href="/properties/{{ $property->id }}">{{ $property->number }}</a></td>
                         <td>{{ $property->propertyType?->name }}</td>
                         <td><a href="/properties/{{ $property->id }}">{{ \App\Support\Address::format($property) }}</a></td>

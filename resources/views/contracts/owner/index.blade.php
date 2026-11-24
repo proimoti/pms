@@ -3,7 +3,7 @@
 @use('App\Support\Format')
 
 @section('title', __('registry.sections.owner-contracts'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => 'owner-contracts'])
@@ -19,8 +19,8 @@
                     <th>{{ __('contracts.screens.fields.type') }}</th>
                     <th>{{ __('contracts.screens.fields.owner') }}</th>
                     <th>{{ __('contracts.screens.fields.properties') }}</th>
-                    <th>{{ __('contracts.screens.fields.signed_on') }}</th>
-                    <th>{{ __('contracts.screens.fields.end_on') }}</th>
+                    <th>{{ __('contracts.screens.columns.signed_on') }}</th>
+                    <th>{{ __('contracts.screens.columns.end_on') }}</th>
                     <th>{{ __('contracts.screens.fields.state') }}</th>
                 </tr>
                 </thead>
@@ -28,14 +28,15 @@
                 @foreach ($contracts as $contract)
                     {{-- Имотите сега и предстоящите (без затворените). --}}
                     @php($current = $contract->lines->filter(fn ($line) => $line->valid_to === null || $line->valid_to->isFuture())->unique('property_id'))
-                    <tr>
+                    <tr data-href="/owner-contracts/{{ $contract->id }}">
                         <td class="num"><a href="/owner-contracts/{{ $contract->id }}">{{ $contract->number }}</a></td>
                         <td>{{ __('contracts.types.'.$contract->type->value) }}</td>
                         <td>{{ $contract->owner?->name ?? __('contracts.screens.own_company') }}</td>
                         <td>{{ $current->map(fn ($line) => $line->property?->number)->filter()->sort()->implode(', ') ?: __('registry.none') }}</td>
                         <td>{{ Format::date($contract->signed_on) }}</td>
                         <td>{{ Format::date($contract->end_on) }}</td>
-                        <td>{{ __('contracts.screens.states.'.$contract->stateOn()) }}</td>
+                        @php($state = $contract->stateOn())
+                        <td><span class="badge state-{{ $state }}">{{ __('contracts.screens.states.'.$state) }}</span></td>
                     </tr>
                 @endforeach
                 </tbody>

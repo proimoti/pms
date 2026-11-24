@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('registry.sections.beneficiaries'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => 'beneficiaries'])
@@ -20,7 +20,7 @@
                 </thead>
                 <tbody>
                 @foreach ($beneficiaries as $beneficiary)
-                    <tr>
+                    <tr data-href="/beneficiaries/{{ $beneficiary->id }}">
                         <td><a href="/beneficiaries/{{ $beneficiary->id }}">{{ $beneficiary->name }}</a></td>
                         <td>
                             @if ($beneficiary->owner)

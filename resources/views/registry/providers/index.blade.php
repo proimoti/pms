@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('registry.sections.providers'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => 'providers'])
@@ -20,7 +20,7 @@
                 </thead>
                 <tbody>
                 @foreach ($providers as $provider)
-                    <tr>
+                    <tr data-href="/providers/{{ $provider->id }}">
                         <td><a href="/providers/{{ $provider->id }}">{{ $provider->name }}</a></td>
                         <td>{{ $provider->easypay_name ?? __('registry.none') }}</td>
                         <td>{{ $provider->epay_name ?? __('registry.none') }}</td>

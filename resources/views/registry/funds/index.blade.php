@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('registry.sections.funds'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => 'funds'])
@@ -15,13 +15,13 @@
                 <thead>
                 <tr>
                     <th>{{ __('utilities.funds.fields.name') }}</th>
-                    <th>{{ __('utilities.funds.fields.analytic') }}</th>
+                    <th>{{ __('utilities.funds.columns.analytic') }}</th>
                     <th>{{ __('utilities.funds.fields.properties') }}</th>
                 </tr>
                 </thead>
                 <tbody>
                 @foreach ($funds as $fund)
-                    <tr>
+                    <tr data-href="/funds/{{ $fund->id }}">
                         <td><a href="/funds/{{ $fund->id }}">{{ $fund->name }}</a></td>
                         <td>
                             @if ($fund->missingAnalytic())

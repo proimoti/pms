@@ -5,7 +5,7 @@
 
 @php($heading = __('charges.statements.title').' — '.Month::label($month))
 @section('title', $heading)
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     <div class="row">

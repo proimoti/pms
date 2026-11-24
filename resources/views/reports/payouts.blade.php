@@ -4,7 +4,7 @@
 @use('App\Services\Charges\Month')
 
 @section('title', __('reports.payouts.title'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     <h1>{{ __('reports.payouts.title') }} — {{ Month::label($month) }}</h1>

@@ -4,7 +4,7 @@
 @use('App\Services\Charges\Month')
 
 @section('title', __('registry.sections.utility-unallocated'))
-@section('width', 'full')
+@section('width', 'list')
 
 {{-- Общите колони на един ред: сметка, имот, период и суми. --}}
 @php($cells = function ($item) use ($properties) {

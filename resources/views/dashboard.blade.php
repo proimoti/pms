@@ -12,6 +12,6 @@
 
     <form method="POST" action="{{ route('logout') }}">
         @csrf
-        <button type="submit" class="secondary">Изход</button>
+        <button type="submit" class="secondary">{{ __('registry.logout') }}</button>
     </form>
 @endsection

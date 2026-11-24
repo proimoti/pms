@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('registry.sections.'.$section))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => $section])
@@ -24,7 +24,7 @@
                 </thead>
                 <tbody>
                 @foreach ($parties as $party)
-                    <tr>
+                    <tr data-href="/{{ $section }}/{{ $party->id }}">
                         <td class="num"><a href="/{{ $section }}/{{ $party->id }}">{{ $party->number }}</a></td>
                         <td><a href="/{{ $section }}/{{ $party->id }}">{{ $party->name }}</a></td>
                         <td>{{ __('registry.kinds.'.$party->kind->value) }}</td>

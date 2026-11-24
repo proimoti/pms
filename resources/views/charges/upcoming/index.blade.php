@@ -4,7 +4,7 @@
 @use('App\Services\Charges\Month')
 
 @section('title', __('charges.upcoming.title'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     <div class="row">

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('registry.sections.utility-accounts'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => 'utility-accounts'])
@@ -24,7 +24,7 @@
                 </thead>
                 <tbody>
                 @foreach ($accounts as $account)
-                    <tr>
+                    <tr data-href="/utility-accounts/{{ $account->id }}">
                         <td><a href="/utility-accounts/{{ $account->id }}">{{ $account->number ?? __('registry.none') }}</a></td>
                         <td>{{ $account->provider?->name ?? __('registry.none') }}</td>
                         <td>{{ __('utilities.kinds.'.$account->kind->value) }}</td>

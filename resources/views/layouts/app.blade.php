@@ -5,32 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title') – {{ config('app.name') }}</title>
     <style>
-        /* Дизайн (21.11.2026): изчистен, светъл; системният шрифт, без външни файлове. */
+        /* Общ вид (24.11.2026, вариант Б от макетите): тъмно меню вляво, светли карти върху сив фон; системният шрифт, без външни файлове. */
         :root {
-            --bg: #f6f7f9; --card: #fff; --text: #111827; --muted: #6b7280; --line: #e5e7eb; --line-strong: #d1d5db;
-            --accent: #2563eb; --accent-soft: #eff6ff; --error: #b91c1c; --ok: #15803d; --warn: #b45309;
-            --stripe-ok: #16a34a; --stripe-warning: #f59e0b; --stripe-off: #d1d5db; --hover: #f9fafb; --radius: 8px;
+            --bg: #eef0f4; --card: #fff; --text: #111827; --muted: #5b6472; --line: #e3e6eb; --line-strong: #c9ced6;
+            --accent: #1d4ed8; --accent-soft: #eff6ff; --error: #b42318; --ok: #1e6b3f; --warn: #7a4f00;
+            --stripe-ok: #16a34a; --stripe-warning: #f59e0b; --stripe-off: #d1d5db; --hover: #f1f5fd; --radius: 8px;
+            --menu: #16213a; --menu-text: #d6dce8; --menu-hover: #22304f; --menu-current: #2d4170; --menu-group: #9aa7c0; --menu-line: #2d3b5c; --menu-soft: #b8c2d6; --menu-link: #a9c4ff;
         }
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 15px; background: var(--bg); color: var(--text); }
-        .shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
-        nav.side { background: var(--card); border-right: 1px solid var(--line); padding: 18px 12px; font-size: 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-        nav.side .brand { font-weight: 600; font-size: 17px; padding: 0 10px 16px; display: block; color: var(--text); text-decoration: none; }
-        nav.side .group { font-size: 12px; color: var(--muted); padding: 14px 10px 6px; }
-        nav.side a.item { display: block; padding: 7px 10px; border-radius: var(--radius); color: var(--text); text-decoration: none; }
-        nav.side a.item:hover { background: var(--hover); }
-        nav.side a.item[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+        .shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 100vh; }
+        nav.side { background: var(--menu); padding: 20px 12px; font-size: 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+        nav.side .brand { font-weight: 700; font-size: 18px; padding: 0 12px 10px; display: block; color: #fff; text-decoration: none; }
+        nav.side .group { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--menu-group); padding: 18px 12px 6px; margin: 0; font-weight: 600; }
+        nav.side a.item { display: block; padding: 7px 12px; border-radius: 6px; color: var(--menu-text); text-decoration: none; }
+        nav.side a.item.sub { padding-left: 26px; }
+        nav.side a.item:hover { background: var(--menu-hover); color: #fff; }
+        nav.side a.item[aria-current="page"] { background: var(--menu-current); color: #fff; font-weight: 600; }
+        nav.side .side-foot { margin-top: auto; padding: 16px 12px 0; border-top: 1px solid var(--menu-line); display: flex; flex-direction: column; gap: 2px; }
+        nav.side .side-foot .who { font-weight: 600; color: #fff; }
+        nav.side .side-foot .firm { font-size: 13px; color: var(--menu-soft); }
+        nav.side .side-foot form { margin: 6px 0 0; }
+        nav.side .side-foot button { margin: 0; padding: 0; border: 0; background: none; color: var(--menu-link); font-size: 14px; cursor: pointer; }
+        nav.side .side-foot button:hover { text-decoration: underline; }
         .page { display: flex; justify-content: center; padding: 32px 16px 48px; }
-        .shell .page { justify-content: flex-start; padding: 28px 32px 48px; }
+        .shell .page { justify-content: flex-start; padding: 32px 40px 48px; }
         main { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 28px; }
-        main.wide { max-width: 680px; }
-        main.full { max-width: 1120px; }
-        main.board { max-width: 1120px; background: transparent; border: 0; padding: 0; }
+        main.list, main.board { max-width: 1600px; }
+        main.full, main.wide { max-width: 1240px; }
+        body:not(.with-menu) main.wide { max-width: 680px; }
+        /* С менюто: страницата е на сивия фон, съдържанието е в светли карти. */
+        .shell main { background: transparent; border: 0; padding: 0; }
+        .shell main:not(.board) > dl, .shell main:not(.board) > form:not(.row), .shell main:not(.board) .table-wrap, .shell main:not(.board) > ul { background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+        .shell main > dl { padding: 18px 20px; }
+        .shell main > form:not(.row) { padding: 8px 24px 24px; }
+        .shell main > ul { padding: 14px 20px 14px 38px; }
+        .shell main:not(.board) .table-wrap table { margin-top: 0; }
+        .shell main:not(.board) .table-wrap th, .shell main:not(.board) .table-wrap td { padding: 10px 14px; }
+        .shell main:not(.board) .table-wrap th { white-space: nowrap; font-size: 12px; }
+        .shell main:not(.board) .table-wrap tbody tr:last-child td { border-bottom: 0; }
+        .shell main:not(.board) h1 { font-size: 28px; font-weight: 700; }
+        tbody tr[data-href] { cursor: pointer; }
+        tbody tr[data-href]:hover { background: var(--hover); }
+        .seg { display: inline-flex; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); overflow: hidden; }
+        .seg a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; font-size: 14px; text-decoration: none; color: var(--text); }
+        .seg a:hover { background: var(--hover); }
+        .seg a[aria-current="true"] { background: var(--text); color: #fff; font-weight: 600; }
         @media (max-width: 900px) {
             .shell { grid-template-columns: 1fr; }
-            nav.side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
-            nav.side .group { width: 100%; padding: 6px 10px 2px; }
-            .shell .page { padding: 18px 12px 36px; }
+            nav.side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
+            nav.side .group { width: 100%; padding: 6px 12px 2px; }
+            nav.side a.item.sub { padding-left: 12px; }
+            nav.side .side-foot { width: 100%; margin-top: 8px; }
+            .shell .page { padding: 18px 16px 36px; }
         }
         h1 { font-size: 1.45rem; font-weight: 600; margin: 0 0 18px; }
         h2 { font-size: 1.1rem; margin: 22px 0 10px; }
@@ -109,6 +136,9 @@
         .badge { display: inline-block; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; vertical-align: middle; }
         .badge.working { background: var(--accent-soft); color: var(--accent); }
         .badge.issued { background: #f0fdf4; color: var(--ok); }
+        .badge.state-active { background: #e4f3ea; color: var(--ok); }
+        .badge.state-upcoming { background: var(--accent-soft); color: var(--accent); }
+        .badge.state-terminated, .badge.state-archived, .badge.state-empty { background: #eef0f3; color: #4a5160; }
         .month-switch { display: inline-flex; align-items: center; gap: 4px; }
         .month-switch a { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 1px solid var(--line-strong); border-radius: var(--radius); text-decoration: none; color: var(--text); background: var(--card); font-size: 18px; }
         .month-switch a:hover { background: var(--hover); }
@@ -128,19 +158,27 @@
 @php($popup = request()->boolean('popup') || old('popup') === '1')
 {{-- Страничното меню е за служителите; входът и малкият прозорец „+ Нов“ са без него. --}}
 @php($withMenu = auth()->check() && auth()->user()->role === \App\Enums\Role::Staff && ! $popup)
-<body @class(['popup' => $popup])>
+<body @class(['popup' => $popup, 'with-menu' => $withMenu])>
 @if ($withMenu)
 <div class="shell">
     <nav class="side" aria-label="{{ __('registry.menu') }}">
         <a class="brand" href="/dashboard">{{ config('app.name') }}</a>
         <a class="item" href="/dashboard" @if (request()->is('dashboard')) aria-current="page" @endif>{{ __('registry.menu') }}</a>
         @foreach (__('registry.menu_groups') as $group => $title)
-            <div class="group">{{ $title }}</div>
+            <p class="group">{{ $title }}</p>
             @foreach (__('registry.menu_items.'.$group) as $section)
                 @continue(in_array($section, __('registry.menu_manage_only'), true) && ! \App\Models\Concerns\WorksheetRules::canManage(auth()->user()))
-                <a class="item" href="/{{ $section }}" @if (request()->is($section, $section.'/*')) aria-current="page" @endif>{{ __('registry.sections.'.$section) }}</a>
+                <a class="item sub" href="/{{ $section }}" @if (request()->is($section, $section.'/*')) aria-current="page" @endif>{{ __('registry.sections.'.$section) }}</a>
             @endforeach
         @endforeach
+        <div class="side-foot">
+            <span class="who">{{ auth()->user()->name }}</span>
+            <span class="firm">{{ auth()->user()->company?->name }}</span>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit">{{ __('registry.logout') }}</button>
+            </form>
+        </div>
     </nav>
 @endif
 <div class="page">
@@ -212,6 +250,19 @@
         }
         window.addEventListener('hashchange', openTarget);
         document.addEventListener('DOMContentLoaded', openTarget);
+
+        // В списъците целият ред води към картата (връзките и бутоните в реда си остават свои).
+        document.addEventListener('click', function (event) {
+            const row = event.target.closest('tr[data-href]');
+            if (!row || event.target.closest('a, button, input, select, textarea, label')) {
+                return;
+            }
+            if (event.ctrlKey || event.metaKey) {
+                window.open(row.dataset.href, '_blank');
+            } else {
+                window.location.href = row.dataset.href;
+            }
+        });
 
         // В малкия прозорец „Отказ“ го затваря.
         document.addEventListener('click', function (event) {

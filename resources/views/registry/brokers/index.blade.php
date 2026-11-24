@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('registry.sections.brokers'))
-@section('width', 'full')
+@section('width', 'list')
 
 @section('content')
     @include('registry.partials.toolbar', ['section' => 'brokers'])
@@ -20,7 +20,7 @@
                 </thead>
                 <tbody>
                 @foreach ($brokers as $broker)
-                    <tr>
+                    <tr data-href="/brokers/{{ $broker->id }}">
                         <td><a href="/brokers/{{ $broker->id }}">{{ $broker->name }}</a></td>
                         <td>{{ $broker->phone }}</td>
                         <td>{{ $broker->email }}</td>

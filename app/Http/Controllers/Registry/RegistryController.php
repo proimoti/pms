@@ -23,10 +23,22 @@ abstract class RegistryController extends Controller
     /** Добавя условията за търсене по текста $term (вече обезопасен за LIKE). */
     abstract protected function applySearch(Builder $query, string $term, string $likeTerm): void;
 
-    /** Списък: активните или архивираните, с търсене. */
+    /** Кои записи показва списъкът: „all“, „active“ (по подразбиране) или „archived“ (24.11.2026). */
+    public static function shown(Request $request): string
+    {
+        $show = (string) $request->query('show', $request->boolean('archived') ? 'archived' : 'active');
+
+        return in_array($show, ['all', 'active', 'archived'], true) ? $show : 'active';
+    }
+
+    /** Списък: всички, активните или архивираните, с търсене. */
     protected function listQuery(Request $request, Builder $query): Builder
     {
-        $request->boolean('archived') ? $query->archived() : $query->active();
+        match (self::shown($request)) {
+            'archived' => $query->archived(),
+            'active' => $query->active(),
+            'all' => $query,
+        };
 
         $term = trim((string) $request->query('q', ''));
 

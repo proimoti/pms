@@ -70,12 +70,13 @@ return [
 
     // Действия и надписи
     'menu' => 'Начало',
+    'logout' => 'Изход',
     // Страничното меню: групи и разделите в тях (21.11.2026).
     'menu_groups' => [
-        'registry' => 'Регистър',
         'contracts' => 'Договори',
         'charges' => 'Начисления',
         'utilities' => 'Битови сметки',
+        'registry' => 'Регистър',
         'reports' => 'Справки',
     ],
     'menu_items' => [
@@ -89,6 +90,7 @@ return [
     'menu_manage_only' => ['utility-imports', 'utility-issues'],
     'search' => 'Търсене',
     'search_button' => 'Търси',
+    'show_all' => 'Всички',
     'show_active' => 'Активни',
     'show_archived' => 'Архивирани',
     'empty' => 'Няма записи.',
@@ -123,6 +125,8 @@ return [
         'legal' => 'Юридическо лице',
     ],
 
+    // Заглавия на колоните в списъците: без скоби (24.11.2026).
+    'columns' => ['area' => 'Площ, кв. м'],
     'fields' => [
         'number' => '№',
         'property_type_id' => 'Вид',
