@@ -96,6 +96,8 @@ class LoginFinishingTest extends TestCase
 
     public function test_reset_mail_is_actually_sent_without_laravel(): void
     {
+        // Извън production писмото излиза само при попълнен MAIL_REDIRECT_TO (пазачът на пощата, 24.11.2026).
+        config(['mail.redirect_to' => 'office-test@example.test']);
         $user = User::factory()->tenant()->create(['email' => 'izmislen@example.test']);
         $this->post('/forgot-password', ['email' => $user->email]);
 

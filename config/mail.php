@@ -16,6 +16,10 @@ return [
 
     'default' => env('MAIL_MAILER', 'log'),
 
+    // Пазачът на пощата (App\Mail\MailGuard, 24.11.2026): попълнено = всички писма само на този адрес;
+    // празно = само в лога, освен при APP_ENV=production (истинско изпращане).
+    'redirect_to' => env('MAIL_REDIRECT_TO'),
+
     /*
     |--------------------------------------------------------------------------
     | Mailer Configurations
