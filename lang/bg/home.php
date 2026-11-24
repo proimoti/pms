@@ -18,7 +18,7 @@ return [
     'occupancy_of' => ':occupied от :total имота',
     'rent' => 'Начислен наем',
     'to_owners' => 'към собствениците :amount €',
-    'commission' => 'Комисиона на фирмата',
+    'commission' => 'Резултат',
     'decide' => [
         'title' => 'Иска решение',
         'import' => 'Сметки „За решение“ от вноса',

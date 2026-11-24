@@ -98,6 +98,9 @@ class HomeScreenTest extends ScreenTestCase
         $this->assertStringContainsString('500,00 €', $band);
         $this->assertStringContainsString(__('home.to_owners', ['amount' => '450,00']), $band);
         $this->assertStringContainsString('<span class="big gain">50,00 €</span>', $band);
+        // Надписът е „Резултат“ (24.11.2026), не „Комисиона на фирмата“.
+        $this->assertStringContainsString('<span class="label">Резултат</span>', $band);
+        $this->assertStringNotContainsString('Комисиона на фирмата', $band);
     }
 
     public function test_month_band_for_a_generated_and_for_a_new_month(): void

@@ -15,14 +15,14 @@
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 15px; background: var(--bg); color: var(--text); }
         .shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 100vh; }
-        nav.side { background: var(--menu); padding: 20px 12px; font-size: 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-        nav.side .brand { font-weight: 700; font-size: 18px; padding: 0 12px 10px; display: block; color: #fff; text-decoration: none; }
-        nav.side .group { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--menu-group); padding: 18px 12px 6px; margin: 0; font-weight: 600; }
-        nav.side a.item { display: block; padding: 7px 12px; border-radius: 6px; color: var(--menu-text); text-decoration: none; }
+        nav.side { background: var(--menu); padding: 14px 12px; font-size: 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+        nav.side .brand { font-weight: 700; font-size: 18px; padding: 0 12px 6px; display: block; color: #fff; text-decoration: none; }
+        nav.side .group { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--menu-group); padding: 10px 12px 3px; margin: 0; font-weight: 600; }
+        nav.side a.item { display: block; padding: 4px 12px; border-radius: 6px; color: var(--menu-text); text-decoration: none; }
         nav.side a.item.sub { padding-left: 26px; }
         nav.side a.item:hover { background: var(--menu-hover); color: #fff; }
         nav.side a.item[aria-current="page"] { background: var(--menu-current); color: #fff; font-weight: 600; }
-        nav.side .side-foot { margin-top: auto; padding: 16px 12px 0; border-top: 1px solid var(--menu-line); display: flex; flex-direction: column; gap: 2px; }
+        nav.side .side-foot { margin-top: auto; padding: 10px 12px 0; border-top: 1px solid var(--menu-line); display: flex; flex-direction: column; gap: 1px; }
         nav.side .side-foot .who { font-weight: 600; color: #fff; }
         nav.side .side-foot .firm { font-size: 13px; color: var(--menu-soft); }
         nav.side .side-foot form { margin: 6px 0 0; }

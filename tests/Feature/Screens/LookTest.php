@@ -94,6 +94,16 @@ class LookTest extends ScreenTestCase
         $this->assertStringNotContainsString('fonts.googleapis.com', $html);
     }
 
+    public function test_menu_is_compact_and_scrolls_on_its_own(): void
+    {
+        $html = $this->get('/properties')->getContent();
+
+        // По-малко разстояние между редовете и групите (24.11.2026), без да се свива текстът; менюто се превърта отделно.
+        $this->assertStringContainsString('nav.side a.item { display: block; padding: 4px 12px;', $html);
+        $this->assertStringContainsString('padding: 10px 12px 3px;', $html);
+        $this->assertMatchesRegularExpression('#nav\.side \{[^}]*font-size: 14px;[^}]*height: 100vh; overflow-y: auto;#', $html);
+    }
+
     // Широчина
 
     public function test_lists_and_reports_are_wide_cards_and_forms_narrower(): void
