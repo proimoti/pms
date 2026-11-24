@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSmallestFreeNumber;
 use App\Models\Concerns\RegistryRecord;
 use Database\Factories\BrokerFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 class Broker extends Model
 {
     /** @use HasFactory<BrokerFactory> */
-    use HasFactory, RegistryRecord;
+    use HasFactory, HasSmallestFreeNumber, RegistryRecord;
 
     protected $table = 'brokers';
 

@@ -47,6 +47,9 @@
         .shell main:not(.board) h1 { font-size: 28px; font-weight: 700; }
         tbody tr[data-href] { cursor: pointer; }
         tbody tr[data-href]:hover { background: var(--hover); }
+        .overpaid { color: var(--ok); font-weight: 600; }
+        .dossier-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; align-items: start; }
+        @media (max-width: 900px) { .dossier-pair { grid-template-columns: 1fr; } }
         .seg { display: inline-flex; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); overflow: hidden; }
         .seg a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; font-size: 14px; text-decoration: none; color: var(--text); }
         .seg a:hover { background: var(--hover); }

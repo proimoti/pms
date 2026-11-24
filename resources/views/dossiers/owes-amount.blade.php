@@ -1,0 +1,2 @@
+{{-- Сума по 418: при минус пише „Надплатено X €“ в зелено, без минус (т. 2.6, 24.11.2026). --}}
+@if (\App\Services\Charges\Cents::from((string) $amount) < 0)<span class="overpaid">{{ __('dossiers.overpaid', ['amount' => \App\Support\Format::money(\App\Services\Charges\Cents::format(-\App\Services\Charges\Cents::from((string) $amount)))]) }}</span>@else{{ \App\Support\Format::money($amount) }} €@endif

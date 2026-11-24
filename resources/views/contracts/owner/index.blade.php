@@ -16,9 +16,9 @@
                 <thead>
                 <tr>
                     <th class="num">{{ __('contracts.screens.fields.number') }}</th>
-                    <th>{{ __('contracts.screens.fields.type') }}</th>
                     <th>{{ __('contracts.screens.fields.owner') }}</th>
                     <th>{{ __('contracts.screens.fields.properties') }}</th>
+                    <th>{{ __('contracts.screens.fields.type') }}</th>
                     <th>{{ __('contracts.screens.columns.signed_on') }}</th>
                     <th>{{ __('contracts.screens.columns.end_on') }}</th>
                     <th>{{ __('contracts.screens.fields.state') }}</th>
@@ -30,9 +30,9 @@
                     @php($current = $contract->lines->filter(fn ($line) => $line->valid_to === null || $line->valid_to->isFuture())->unique('property_id'))
                     <tr data-href="/owner-contracts/{{ $contract->id }}">
                         <td class="num"><a href="/owner-contracts/{{ $contract->id }}">{{ $contract->number }}</a></td>
-                        <td>{{ __('contracts.types.'.$contract->type->value) }}</td>
                         <td>{{ $contract->owner?->name ?? __('contracts.screens.own_company') }}</td>
                         <td>{{ $current->map(fn ($line) => $line->property?->number)->filter()->sort()->implode(', ') ?: __('registry.none') }}</td>
+                        <td>{{ __('contracts.types.'.$contract->type->value) }}</td>
                         <td>{{ Format::date($contract->signed_on) }}</td>
                         <td>{{ Format::date($contract->end_on) }}</td>
                         @php($state = $contract->stateOn())

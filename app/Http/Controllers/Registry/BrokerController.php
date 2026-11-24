@@ -19,6 +19,9 @@ class BrokerController extends RegistryController
 
     protected function applySearch(Builder $query, string $term, string $likeTerm): void
     {
+        if (ctype_digit($term)) {
+            $query->orWhere('number', (int) $term);
+        }
         foreach (['name', 'phone', 'email'] as $column) {
             $query->orWhere($column, 'like', $likeTerm);
         }
@@ -26,7 +29,7 @@ class BrokerController extends RegistryController
 
     public function index(Request $request): View
     {
-        $query = $this->listQuery($request, Broker::query()->orderBy('name'));
+        $query = $this->listQuery($request, Broker::query()->orderBy('name')->orderBy('number'));
 
         return view('registry.brokers.index', ['brokers' => $this->paginate($query)]);
     }
@@ -45,7 +48,12 @@ class BrokerController extends RegistryController
 
     public function show(Broker $broker): View
     {
-        return view('registry.brokers.show', ['broker' => $broker]);
+        // Имотите, към които е прикачено лицето, по собственик (т. 2.8, 24.11.2026).
+        $properties = \App\Models\Property::query()->where('broker_id', $broker->id)->orderBy('number')->get();
+        $parties = app(\App\Services\Registry\ListColumns::class)->propertyParties($properties);
+        $properties = $properties->sortBy(fn ($property) => [$parties[$property->id]['owner'] === null ? 1 : 0, mb_strtolower($parties[$property->id]['owner']?->name ?? ''), $property->number])->values();
+
+        return view('registry.brokers.show', ['broker' => $broker, 'properties' => $properties, 'parties' => $parties]);
     }
 
     public function edit(Broker $broker): View

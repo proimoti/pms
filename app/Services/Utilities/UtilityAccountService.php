@@ -87,6 +87,10 @@ final class UtilityAccountService
     private function values(UtilityAccount $account, array $data, MessageBag $errors): array
     {
         $kind = UtilityKind::tryFrom((string) ($data['kind'] ?? ''));
+        // Без избран вид: видът на доставчика (т. 2.13, 24.11.2026).
+        if ($kind === null && ! $this->blank($data['provider_id'] ?? null)) {
+            $kind = Provider::query()->find($data['provider_id'])?->kind;
+        }
         $billing = UtilityBilling::tryFrom((string) ($data['billing'] ?? ''));
         $kind ?? $errors->add('kind', __('utilities.errors.kind'));
         $billing ?? $errors->add('billing', __('utilities.errors.billing'));

@@ -14,6 +14,7 @@
                 <thead>
                 <tr>
                     <th>{{ __('utilities.fields.name') }}</th>
+                    <th>{{ __('utilities.fields.kind') }}</th>
                     <th>{{ __('utilities.fields.easypay_name') }}</th>
                     <th>{{ __('utilities.fields.epay_name') }}</th>
                 </tr>
@@ -22,6 +23,7 @@
                 @foreach ($providers as $provider)
                     <tr data-href="/providers/{{ $provider->id }}">
                         <td><a href="/providers/{{ $provider->id }}">{{ $provider->name }}</a></td>
+                        <td>{{ $provider->kind ? __('utilities.kinds.'.$provider->kind->value) : __('registry.none') }}</td>
                         <td>{{ $provider->easypay_name ?? __('registry.none') }}</td>
                         <td>{{ $provider->epay_name ?? __('registry.none') }}</td>
                     </tr>

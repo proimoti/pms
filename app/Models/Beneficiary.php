@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Role;
+use App\Models\Concerns\HasSmallestFreeNumber;
 use App\Models\Concerns\RegistryRecord;
 use App\Models\Scopes\RegistryVisibilityScope;
 use App\Support\Iban;
@@ -29,7 +30,7 @@ use Illuminate\Validation\ValidationException;
 class Beneficiary extends Model
 {
     /** @use HasFactory<BeneficiaryFactory> */
-    use HasFactory, RegistryRecord;
+    use HasFactory, HasSmallestFreeNumber, RegistryRecord;
 
     protected $table = 'beneficiaries';
 

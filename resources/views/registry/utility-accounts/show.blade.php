@@ -24,7 +24,10 @@
         @endif
         @unless ($account->isFixed())
             <dt>{{ __('utilities.fields.period') }}</dt>
-            <dd>{{ $account->period_start_day }} – {{ $account->period_end_day ?? __('utilities.hints.last_day') }}</dd>
+            <dd>
+                {{ $account->period_start_day }} – {{ $account->period_end_day ?? __('utilities.hints.last_day') }}
+                <div class="muted">{{ __('utilities.hints.period_days') }}</div>
+            </dd>
         @endunless
         <dt>{{ __('utilities.fields.valid_from') }}</dt><dd>{{ \App\Support\Format::date($account->valid_from) }}</dd>
         <dt>{{ __('utilities.fields.valid_to') }}</dt><dd>{{ \App\Support\Format::date($account->valid_to) }}</dd>

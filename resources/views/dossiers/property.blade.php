@@ -40,17 +40,6 @@
     </div>
 @endif
 
-<h2>{{ __('dossiers.sections.funds') }}</h2>
-@if ($funds->isEmpty())
-    <p class="muted">{{ __('dossiers.none') }}</p>
-@else
-    <ul>
-        @foreach ($funds as $fund)
-            <li><a href="/funds/{{ $fund->id }}">{{ $fund->name }}</a></li>
-        @endforeach
-    </ul>
-@endif
-
 <h2>{{ __('dossiers.sections.unallocated') }}</h2>
 @if ($unallocated['decide'] === [] && $unallocated['waiting'] === [])
     <p class="muted">{{ __('dossiers.none') }}</p>
@@ -80,4 +69,3 @@
     <dt>{{ __('dossiers.balances.owner') }}</dt><dd>{{ Format::money($balances['owner']) }} €</dd>
     <dt>{{ __('dossiers.balances.utility') }}</dt><dd>{{ Format::money($balances['utility']) }} €</dd>
 </dl>
-<p class="muted">{{ __('dossiers.balances_hint') }}</p>

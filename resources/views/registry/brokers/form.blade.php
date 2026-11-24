@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php($isNew = ! $broker->exists)
-@php($heading = $isNew ? __('registry.new.brokers') : __('registry.one.brokers'))
+@php($heading = $isNew ? __('registry.new.brokers') : __('registry.one.brokers').' № '.$broker->number)
 @section('title', $heading)
 @section('width', 'wide')
 

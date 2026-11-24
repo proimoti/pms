@@ -23,14 +23,20 @@ class BeneficiaryController extends RegistryController
 
     protected function applySearch(Builder $query, string $term, string $likeTerm): void
     {
+        if (ctype_digit($term)) {
+            $query->orWhere('number', (int) $term);
+        }
         $query->orWhere('name', 'like', $likeTerm);
     }
 
     public function index(Request $request): View
     {
-        $query = $this->listQuery($request, Beneficiary::query()->with('owner')->orderBy('name'));
+        $beneficiaries = $this->paginate($this->listQuery($request, Beneficiary::query()->orderBy('name')->orderBy('number')));
 
-        return view('registry.beneficiaries.index', ['beneficiaries' => $this->paginate($query)]);
+        return view('registry.beneficiaries.index', [
+            'beneficiaries' => $beneficiaries,
+            'contracts' => app(\App\Services\Registry\ListColumns::class)->beneficiaryContracts($beneficiaries->getCollection()->pluck('id')),
+        ]);
     }
 
     public function create(): View

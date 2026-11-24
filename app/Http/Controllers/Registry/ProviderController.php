@@ -74,6 +74,7 @@ class ProviderController extends RegistryController
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'kind' => ['nullable', \Illuminate\Validation\Rule::enum(\App\Enums\UtilityKind::class)],
             'easypay_name' => ['nullable', 'string', 'max:255'],
             'epay_name' => ['nullable', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:5000'],
@@ -81,6 +82,7 @@ class ProviderController extends RegistryController
 
         return [
             'name' => $request->input('name'),
+            'kind' => $request->input('kind') ?: null,
             'easypay_name' => $request->input('easypay_name'),
             'epay_name' => $request->input('epay_name'),
             'note' => $request->input('note'),

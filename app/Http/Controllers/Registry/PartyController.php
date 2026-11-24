@@ -32,9 +32,16 @@ abstract class PartyController extends RegistryController
 
     public function index(Request $request): View
     {
-        $query = $this->listQuery($request, $this->modelClass()::query()->orderBy('number'));
+        // По име (т. 2.3 и 2.5, 24.11.2026), с номерата на договорите.
+        $parties = $this->paginate($this->listQuery($request, $this->modelClass()::query()->orderBy('name')->orderBy('number')));
+        $columns = app(\App\Services\Registry\ListColumns::class);
+        $ids = $parties->getCollection()->pluck('id');
 
-        return view('registry.parties.index', ['parties' => $this->paginate($query), 'section' => $this->section()]);
+        return view('registry.parties.index', [
+            'parties' => $parties,
+            'section' => $this->section(),
+            'contracts' => $this->section() === 'owners' ? $columns->ownerContracts($ids) : $columns->currentLeases($ids),
+        ]);
     }
 
     public function create(): View
@@ -79,10 +86,11 @@ abstract class PartyController extends RegistryController
                 'beneficiaries' => $dossier->ownerBeneficiaries($party),
             ];
         } elseif ($party instanceof \App\Models\Tenant) {
+            $leases = $dossier->tenantLeases($party);
             $data += [
-                'leases' => $dossier->tenantLeases($party),
-                'statements' => $dossier->tenantStatements($party),
+                'leases' => $leases,
                 'owes' => $dossier->tenantOwes($party),
+                'deposits' => $dossier->tenantDeposits($leases),
             ];
         }
 

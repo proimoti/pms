@@ -43,7 +43,7 @@ class DossierScreensTest extends ScreenTestCase
             ->assertSeeInOrder([__('dossiers.current'), 'Борис Измислен', __('dossiers.past'), 'Анна Измислена']);
         // Абонати и фонд
         $page->assertSee(__('dossiers.sections.accounts'))->assertSee('href="/utility-accounts/'.$this->meter->id.'"', false)->assertSee('№ 0012345')
-            ->assertSee(__('dossiers.sections.funds'))->assertSee('Вход (измислен)');
+            ->assertSee('Вход (измислен)'); // фондът — при абонатите (т. 2.2, 24.11.2026)
         // Неразпределени сметки и салда
         $page->assertSee(__('dossiers.sections.unallocated'))->assertSee('90,00')
             ->assertSee(__('dossiers.sections.balances'))
@@ -78,7 +78,8 @@ class DossierScreensTest extends ScreenTestCase
 
         $this->get("/tenants/{$this->boris->id}")->assertOk()
             ->assertSee(__('dossiers.sections.leases'))->assertSee('href="/lease-contracts/'.$this->lease->id.'"', false)
-            ->assertSee(__('dossiers.sections.statements'))->assertSee('href="/statements/'.$statement->id.'"', false)
+            // Известията са в картата на договора за наем (т. 2.6, 24.11.2026).
+            ->assertDontSee('<h2>'.__('dossiers.sections.statements').'</h2>', false)->assertDontSee('href="/statements/'.$statement->id.'"', false)
             ->assertSee(__('dossiers.sections.owes'))->assertSeeInOrder([__('dossiers.owes_total'), '500,00'])
             ->assertDontSee(__('dossiers.charged'));
 

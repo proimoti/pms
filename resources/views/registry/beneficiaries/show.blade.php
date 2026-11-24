@@ -4,7 +4,7 @@
 @section('width', 'wide')
 
 @section('content')
-    <h1>{{ __('registry.one.beneficiaries') }}: {{ $beneficiary->name }}</h1>
+    <h1>{{ __('registry.one.beneficiaries') }} № {{ $beneficiary->number }}: {{ $beneficiary->name }}</h1>
 
     <dl>
         <dt>{{ __('registry.fields.iban') }}</dt>

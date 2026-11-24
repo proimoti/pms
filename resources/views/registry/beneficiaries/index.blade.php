@@ -9,26 +9,22 @@
     @if ($beneficiaries->isEmpty())
         <p class="muted">{{ __('registry.empty') }}</p>
     @else
-        {{-- IBAN не излиза в списъка (PROJECT.md, т. 2). --}}
+        {{-- IBAN не излиза в списъка (PROJECT.md, т. 2). Колони и ред (т. 2.4, 24.11.2026): №, име, договорите; по име. --}}
         <div class="table-wrap">
             <table>
                 <thead>
                 <tr>
-                    <th>{{ __('registry.fields.name') }}</th>
-                    <th>{{ __('registry.fields.beneficiary_owner') }}</th>
+                    <th class="num">{{ __('registry.columns.number') }}</th>
+                    <th>{{ __('registry.columns.name') }}</th>
+                    <th>{{ __('registry.columns.owner_contracts') }}</th>
                 </tr>
                 </thead>
                 <tbody>
                 @foreach ($beneficiaries as $beneficiary)
                     <tr data-href="/beneficiaries/{{ $beneficiary->id }}">
-                        <td><a href="/beneficiaries/{{ $beneficiary->id }}">{{ $beneficiary->name }}</a></td>
-                        <td>
-                            @if ($beneficiary->owner)
-                                {{ __('registry.owner_himself') }}: № {{ $beneficiary->owner->number }}
-                            @else
-                                {{ __('registry.none') }}
-                            @endif
-                        </td>
+                        <td class="num"><a href="/beneficiaries/{{ $beneficiary->id }}">{{ $beneficiary->number }}</a></td>
+                        <td>{{ $beneficiary->name }}</td>
+                        <td>@include('registry.partials.contract-numbers', ['contracts' => $contracts[$beneficiary->id] ?? [], 'path' => 'owner-contracts'])</td>
                     </tr>
                 @endforeach
                 </tbody>

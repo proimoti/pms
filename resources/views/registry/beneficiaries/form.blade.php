@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php($isNew = ! $beneficiary->exists)
-@php($heading = $isNew ? __('registry.new.beneficiaries') : __('registry.one.beneficiaries'))
+@php($heading = $isNew ? __('registry.new.beneficiaries') : __('registry.one.beneficiaries').' № '.$beneficiary->number)
 @section('title', $heading)
 @section('width', 'wide')
 

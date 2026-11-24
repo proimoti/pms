@@ -155,6 +155,30 @@ final class Dossier
         return ['total' => Cents::format(array_sum(array_map(fn ($v) => Cents::from($v), $contracts))), 'contracts' => $contracts];
     }
 
+    /**
+     * Депозитите по договорите на наемателя (т. 2.6, 24.11.2026): договореният
+     * (сборът по сегашните и предстоящите имоти на договора) и начисленият (491).
+     * Внесеният идва с плащанията.
+     *
+     * @return array<int, array{contracted: string, charged: string}>
+     */
+    public function tenantDeposits(Collection $leases): array
+    {
+        $charged = LedgerEntry::query()->where('account', LedgerAccount::Deposit->value)->whereIn('lease_contract_id', $leases->pluck('id'))
+            ->groupBy('lease_contract_id')->selectRaw('lease_contract_id, SUM(amount) as total')->pluck('total', 'lease_contract_id');
+        $result = [];
+        foreach ($leases as $lease) {
+            $latest = $lease->lines->filter(fn ($line) => $line->valid_to === null || $line->valid_to->isFuture())
+                ->groupBy('property_id')->map(fn ($versions) => $versions->sortBy('valid_from')->last());
+            $result[$lease->id] = [
+                'contracted' => Cents::format($latest->sum(fn ($line) => Cents::from((string) ($line->deposit ?? '0')))),
+                'charged' => Cents::format(Cents::from((string) ($charged[$lease->id] ?? '0'))),
+            ];
+        }
+
+        return $result;
+    }
+
     // Договори
 
     /** Дължи по договора за наем (418). */

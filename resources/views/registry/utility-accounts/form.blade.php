@@ -62,7 +62,7 @@
                 <select id="provider_id" name="provider_id">
                     <option value=""></option>
                     @foreach ($providers as $provider)
-                        <option value="{{ $provider->id }}" @selected((string) old('provider_id', $account->provider_id) === (string) $provider->id)>{{ $provider->name }}</option>
+                        <option value="{{ $provider->id }}" data-kind="{{ $provider->kind?->value }}" @selected((string) old('provider_id', $account->provider_id) === (string) $provider->id)>{{ $provider->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -72,6 +72,7 @@
             </div>
         </div>
         <p class="muted">{{ __('utilities.hints.number') }}</p>
+        <p class="muted">{{ __('utilities.hints.period_days') }}</p>
 
         <div class="grid">
             <div>
@@ -131,6 +132,13 @@
     </template>
 
     <script>
+        // Видът услуга се попълва сам от доставчика (т. 2.13); може да се смени.
+        document.getElementById('provider_id').addEventListener('change', function () {
+            const kind = this.selectedOptions[0]?.dataset.kind;
+            if (kind) {
+                document.getElementById('kind').value = kind;
+            }
+        });
         (function () {
             const rows = document.getElementById('property-rows');
             const template = document.getElementById('property-template');

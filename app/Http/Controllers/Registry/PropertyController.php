@@ -34,9 +34,13 @@ class PropertyController extends RegistryController
 
     public function index(Request $request): View
     {
-        $query = $this->listQuery($request, Property::query()->with(['propertyType', 'broker'])->orderBy('number'));
+        $query = $this->listQuery($request, Property::query()->with(['broker'])->orderBy('number'));
+        $properties = $this->paginate($query);
 
-        return view('registry.properties.index', ['properties' => $this->paginate($query)]);
+        return view('registry.properties.index', [
+            'properties' => $properties,
+            'parties' => app(\App\Services\Registry\ListColumns::class)->propertyParties($properties->getCollection()),
+        ]);
     }
 
     public function create(): View

@@ -15,6 +15,15 @@
         <label for="name">{{ __('utilities.fields.name') }} *</label>
         <input id="name" type="text" name="name" value="{{ old('name', $provider->name) }}" required>
 
+        <label for="kind">{{ __('utilities.fields.kind') }}</label>
+        <select id="kind" name="kind">
+            <option value=""></option>
+            @foreach (\App\Enums\UtilityKind::cases() as $kind)
+                <option value="{{ $kind->value }}" @selected(old('kind', $provider->kind?->value) === $kind->value)>{{ __('utilities.kinds.'.$kind->value) }}</option>
+            @endforeach
+        </select>
+        <div class="muted">{{ __('utilities.hints.provider_kind') }}</div>
+
         <p class="muted">{{ __('utilities.hints.provider_names') }}</p>
 
         <label for="easypay_name">{{ __('utilities.fields.easypay_name') }}</label>

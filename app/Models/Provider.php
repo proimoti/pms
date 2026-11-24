@@ -22,7 +22,13 @@ class Provider extends Model
 
     protected $table = 'providers';
 
-    protected $fillable = ['name', 'easypay_name', 'epay_name', 'note'];
+    protected $fillable = ['name', 'kind', 'easypay_name', 'epay_name', 'note'];
+
+    /** Вид услуга (т. 2.13, 24.11.2026): един доставчик – една услуга; попълва се сам в новия абонат. */
+    protected function casts(): array
+    {
+        return ['kind' => \App\Enums\UtilityKind::class];
+    }
 
     protected static function booted(): void
     {

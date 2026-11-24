@@ -21,7 +21,7 @@
         {{-- Досие (23.11.2026): само „дължи по този договор“, подробно — на картата на наемателя. --}}
         <dt>{{ __('dossiers.owes_on_contract') }}</dt>
         <dd>
-            <strong>{{ Format::money($owes) }} €</strong>
+            <strong>@include('dossiers.owes-amount', ['amount' => $owes])</strong>
             @if ($contract->tenant) · <a href="/tenants/{{ $contract->tenant->id }}">{{ __('dossiers.owes_see_tenant') }}</a>@endif
         </dd>
         <dt>{{ __('contracts.screens.fields.tenant') }}</dt>
