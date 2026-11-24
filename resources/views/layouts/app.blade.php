@@ -51,6 +51,14 @@
         .dossier-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; align-items: start; }
         .shell main .dossier-pair dl { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 20px; }
         .nowrap { white-space: nowrap; }
+        /* Списъци (24.11.2026): тясна колона „№“; целият ред води към картата, затова връзките в реда са спокойни. */
+        th.col-no, td.col-no { width: 1%; white-space: nowrap; text-align: left; }
+        .shell main:not(.board) a { text-decoration: none; }
+        .shell main:not(.board) a:hover { text-decoration: underline; }
+        .shell main:not(.board) a.button:hover, .shell main:not(.board) a.home-row:hover, .shell main:not(.board) .seg a:hover { text-decoration: none; }
+        .shell main tr[data-href] a { color: var(--text); text-decoration: none; }
+        .shell main tr[data-href] a:hover { color: var(--accent); text-decoration: underline; }
+        .shell main td.col-no a { font-weight: 700; }
         @media (max-width: 900px) { .dossier-pair { grid-template-columns: 1fr; } }
         .seg { display: inline-flex; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); overflow: hidden; }
         .seg a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; font-size: 14px; text-decoration: none; color: var(--text); }

@@ -146,6 +146,26 @@ class ScreenFixesTest extends ScreenTestCase
         $this->get('/tenants')->assertSeeInOrder(['Анна Измислена', 'Борис Измислен']);
     }
 
+    public function test_upcoming_lease_is_shown_with_its_start_date(): void
+    {
+        // Предстоящ договор (24.11.2026): „№ 3 (от 16.12.2026)“ при наемателя и при имота без сегашен наемател.
+        $hristo = $this->party(Tenant::class, 'Христо Измислен');
+        $upcoming = app(LeaseContractService::class)->create(['tenant_id' => $hristo->id, 'signed_on' => '2026-12-16',
+            'lines' => [['property_id' => $this->empty->id, 'rent' => '400']]]);
+        $label = __('registry.upcoming_from', ['date' => '16.12.2026']);
+
+        $tenant = $this->row('/tenants', "/tenants/{$hristo->id}");
+        $this->assertStringContainsString('№ '.$upcoming->number, $tenant);
+        $this->assertStringContainsString($label, $tenant);
+        // Сегашният договор е без бележка.
+        $this->assertStringNotContainsString('(от', $this->row('/tenants', "/tenants/{$this->boris->id}"));
+
+        $property = $this->row('/properties', "/properties/{$this->empty->id}");
+        $this->assertStringContainsString('Христо Измислен', $property);
+        $this->assertStringContainsString($label, $property);
+        $this->assertStringNotContainsString('(от', $this->row('/properties', "/properties/{$this->flat->id}"));
+    }
+
     // 2.6 Наемател (карта)
 
     public function test_tenant_card_without_statements_and_hint_with_deposits_next_to_owes(): void

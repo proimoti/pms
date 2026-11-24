@@ -1,2 +1,2 @@
-{{-- Номерата на договорите като връзки към картите им (списъците, т. 2.3–2.5). --}}
-@foreach ($contracts as $contract)<a href="/{{ $path }}/{{ $contract->id }}">№ {{ $contract->number }}</a>@if (! $loop->last), @endif @endforeach
+{{-- Номерата на договорите като връзки към картите им (списъците, т. 2.3–2.5); предстоящият е с „(от дд.мм.гггг)“ (24.11.2026). --}}
+@foreach ($contracts as $contract)<a href="/{{ $path }}/{{ $contract->id }}">№ {{ $contract->number }}</a>@if ($contract->upcomingFrom) <span class="muted">{{ __('registry.upcoming_from', ['date' => \App\Support\Format::date($contract->upcomingFrom)]) }}</span>@endif{{ $loop->last ? '' : ', ' }}@endforeach

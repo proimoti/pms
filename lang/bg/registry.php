@@ -92,6 +92,7 @@ return [
     'search' => 'Търсене',
     'search_button' => 'Търси',
     'show_all' => 'Всички',
+    'upcoming_from' => '(от :date)',
     'show_active' => 'Активни',
     'show_archived' => 'Архивирани',
     'empty' => 'Няма записи.',

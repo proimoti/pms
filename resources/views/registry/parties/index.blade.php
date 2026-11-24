@@ -15,7 +15,7 @@
             <table>
                 <thead>
                 <tr>
-                    <th class="num">{{ __('registry.columns.number') }}</th>
+                    <th class="col-no">{{ __('registry.columns.number') }}</th>
                     <th>{{ __('registry.columns.name') }}</th>
                     <th>{{ __('registry.columns.'.($owners ? 'owner_contracts' : 'lease_contracts')) }}</th>
                 </tr>
@@ -23,7 +23,7 @@
                 <tbody>
                 @foreach ($parties as $party)
                     <tr data-href="/{{ $section }}/{{ $party->id }}">
-                        <td class="num"><a href="/{{ $section }}/{{ $party->id }}">{{ $party->number }}</a></td>
+                        <td class="col-no"><a href="/{{ $section }}/{{ $party->id }}">{{ $party->number }}</a></td>
                         <td>{{ $party->name }}</td>
                         <td>@include('registry.partials.contract-numbers', ['contracts' => $contracts[$party->id] ?? [], 'path' => $owners ? 'owner-contracts' : 'lease-contracts'])</td>
                     </tr>

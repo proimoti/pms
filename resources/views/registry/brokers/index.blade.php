@@ -14,7 +14,7 @@
             <table>
                 <thead>
                 <tr>
-                    <th class="num">{{ __('registry.columns.number') }}</th>
+                    <th class="col-no">{{ __('registry.columns.number') }}</th>
                     <th>{{ __('registry.columns.name') }}</th>
                     <th>{{ __('registry.columns.phone') }}</th>
                     <th>{{ __('registry.columns.email') }}</th>
@@ -23,7 +23,7 @@
                 <tbody>
                 @foreach ($brokers as $broker)
                     <tr data-href="/brokers/{{ $broker->id }}">
-                        <td class="num"><a href="/brokers/{{ $broker->id }}">{{ $broker->number }}</a></td>
+                        <td class="col-no"><a href="/brokers/{{ $broker->id }}">{{ $broker->number }}</a></td>
                         <td>{{ $broker->name }}</td>
                         <td>{{ $broker->phone }}</td>
                         <td>{{ $broker->email }}</td>

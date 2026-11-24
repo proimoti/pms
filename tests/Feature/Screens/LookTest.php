@@ -194,6 +194,32 @@ class LookTest extends ScreenTestCase
         $this->assertStringNotContainsString('class="seg"', $html);
     }
 
+    // Поправки по вида (24.11.2026): тясна колона „№“, спокойни връзки в списъците, връзки в картите.
+
+    public function test_number_column_is_narrow_and_left_aligned(): void
+    {
+        foreach (['properties', 'owners', 'beneficiaries', 'tenants', 'brokers', 'owner-contracts', 'lease-contracts'] as $section) {
+            $html = $this->get("/{$section}")->getContent();
+            preg_match('#<thead>\s*<tr>\s*<th([^>]*)>#', $html, $th);
+            $this->assertSame(' class="col-no"', $th[1] ?? null, $section);
+            $this->assertMatchesRegularExpression('#<tr data-href="[^"]+">\s*<td class="col-no"><a #', $html, $section);
+        }
+        $this->assertStringContainsString('th.col-no, td.col-no { width: 1%; white-space: nowrap; text-align: left; }', $this->get('/properties')->getContent());
+    }
+
+    public function test_links_are_calm_in_lists_and_not_underlined_in_cards(): void
+    {
+        $css = $this->get('/properties')->getContent();
+
+        // Списъци: тъмен текст без подчертаване; синьо и подчертано само под мишката върху самата връзка; номерът е удебелен.
+        $this->assertStringContainsString('.shell main tr[data-href] a { color: var(--text); text-decoration: none; }', $css);
+        $this->assertStringContainsString('.shell main tr[data-href] a:hover { color: var(--accent); text-decoration: underline; }', $css);
+        $this->assertStringContainsString('.shell main td.col-no a { font-weight: 700; }', $css);
+        // Карти: сини без подчертаване, подчертаване под мишката.
+        $this->assertStringContainsString('.shell main:not(.board) a { text-decoration: none; }', $css);
+        $this->assertStringContainsString('.shell main:not(.board) a:hover { text-decoration: underline; }', $css);
+    }
+
     private function menu(string $html): string
     {
         $start = strpos($html, '<nav class="side"');

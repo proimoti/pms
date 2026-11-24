@@ -15,7 +15,7 @@
             <table>
                 <thead>
                 <tr>
-                    <th class="num">{{ __('contracts.screens.fields.number') }}</th>
+                    <th class="col-no">{{ __('contracts.screens.fields.number') }}</th>
                     <th>{{ __('contracts.screens.fields.owner') }}</th>
                     <th>{{ __('contracts.screens.fields.properties') }}</th>
                     <th>{{ __('contracts.screens.fields.type') }}</th>
@@ -29,7 +29,7 @@
                     {{-- Имотите сега и предстоящите (без затворените). --}}
                     @php($current = $contract->lines->filter(fn ($line) => $line->valid_to === null || $line->valid_to->isFuture())->unique('property_id'))
                     <tr data-href="/owner-contracts/{{ $contract->id }}">
-                        <td class="num"><a href="/owner-contracts/{{ $contract->id }}">{{ $contract->number }}</a></td>
+                        <td class="col-no"><a href="/owner-contracts/{{ $contract->id }}">{{ $contract->number }}</a></td>
                         <td>{{ $contract->owner?->name ?? __('contracts.screens.own_company') }}</td>
                         <td>{{ $current->map(fn ($line) => $line->property?->number)->filter()->sort()->implode(', ') ?: __('registry.none') }}</td>
                         <td>{{ __('contracts.types.'.$contract->type->value) }}</td>

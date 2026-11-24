@@ -38,17 +38,31 @@ final class ListColumns
         return $result;
     }
 
-    /** @return array<int, list<LeaseContract>> наемател => договорите за наем, които действат днес */
+    /**
+     * @return array<int, list<LeaseContract>> наемател => договорите за наем, които действат днес, и предстоящите
+     *     (24.11.2026: предстоящият се вижда с бележка „(от дд.мм.гггг)“; при него е попълнено upcomingFrom)
+     */
     public function currentLeases(Collection $tenantIds, ?CarbonImmutable $today = null): array
     {
         $today ??= CarbonImmutable::today();
 
         return LeaseContract::query()->whereIn('tenant_id', $tenantIds)->whereNull('archived_at')->orderBy('number')->get()
-            ->filter(fn (LeaseContract $lease) => $lease->isActiveOn($today))
+            ->filter(function (LeaseContract $lease) use ($today) {
+                if ($lease->isActiveOn($today)) {
+                    return true;
+                }
+                if ($lease->stateOn($today) === 'upcoming') {
+                    $lease->upcomingFrom = $lease->startsOn();
+
+                    return true;
+                }
+
+                return false;
+            })
             ->groupBy('tenant_id')->map(fn ($leases) => $leases->values()->all())->all();
     }
 
-    /** @return array<int, array{owner: ?\App\Models\Owner, tenant: ?\App\Models\Tenant}> имот => сегашните собственик и наемател */
+    /** @return array<int, array{owner: ?\App\Models\Owner, tenant: ?\App\Models\Tenant, tenant_from: ?CarbonImmutable}> имот => сегашните собственик и наемател (или предстоящият наемател и от кога) */
     public function propertyParties(Collection $properties, ?CarbonImmutable $today = null): array
     {
         $today ??= CarbonImmutable::today();
@@ -60,12 +74,25 @@ final class ListColumns
             ->whereHas('lines', fn (Builder $q) => $q->whereIn('property_id', $ids))->get()
             ->filter(fn (LeaseContract $c) => $c->isActiveOn($today));
 
+        // Без сегашен наемател: първият предстоящ (по датата, от която имотът е в договора).
+        $upcoming = LeaseContract::query()->with(['tenant', 'lines'])->whereNull('archived_at')->whereNull('terminated_on')
+            ->whereHas('lines', fn (Builder $q) => $q->whereIn('property_id', $ids)->whereDate('valid_from', '>', $today->toDateString()))->get();
+
         $result = [];
         foreach ($properties as $property) {
             /** @var Property $property */
+            $tenant = $leases->first(fn (LeaseContract $c) => $c->lineOn($property, $today) !== null)?->tenant;
+            $from = null;
+            if ($tenant === null) {
+                $next = $upcoming->map(fn (LeaseContract $c) => [$c, $c->lines->where('property_id', $property->id)
+                    ->map(fn ($line) => CarbonImmutable::parse($line->valid_from)->startOfDay())->filter(fn ($d) => $d->gt($today))->sort()->first()])
+                    ->filter(fn ($pair) => $pair[1] !== null)->sortBy(fn ($pair) => $pair[1]->timestamp)->first();
+                [$tenant, $from] = $next ? [$next[0]->tenant, $next[1]] : [null, null];
+            }
             $result[$property->id] = [
                 'owner' => $managements->first(fn (OwnerContract $c) => $c->lineOn($property, $today) !== null)?->owner,
-                'tenant' => $leases->first(fn (LeaseContract $c) => $c->lineOn($property, $today) !== null)?->tenant,
+                'tenant' => $tenant,
+                'tenant_from' => $from,
             ];
         }
 
