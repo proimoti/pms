@@ -24,7 +24,7 @@
     <form method="GET" action="/statements" class="row" style="margin: 18px 0 14px; justify-content: flex-start; align-items: flex-end;">
         <div>
             <label for="month">{{ __($f.'month') }}</label>
-            <input id="month" type="text" name="month" value="{{ $filters['month'] }}" placeholder="{{ __($f.'month_hint') }}" style="max-width: 170px;">
+            <input id="month" type="text" name="month" value="{{ $filters['month'] }}" placeholder="{{ __($f.'month_hint') }}" style="min-width: 230px; max-width: 230px;">
         </div>
         <div>
             <label for="number">{{ __($f.'number') }}</label>

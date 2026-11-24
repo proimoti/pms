@@ -39,6 +39,7 @@ return [
         'reports/vacant' => 'Свободни имоти',
         'reports/expired' => 'Изтекъл срок',
         'reports/payouts' => 'За изплащане',
+        'reports/settlements' => 'Разчети за период',
         'utility-imports' => 'Внос на сметки',
         'utility-issues' => 'За решение (внос)',
         'utility-unallocated' => 'Неразпределени сметки',
@@ -84,7 +85,7 @@ return [
         'contracts' => ['owner-contracts', 'lease-contracts'],
         'charges' => ['charges', 'upcoming-charges', 'statements'],
         'utilities' => ['utility-imports', 'utility-issues', 'utility-unallocated', 'utility-accounts', 'funds', 'providers'],
-        'reports' => ['reports/expiring', 'reports/vacant', 'reports/expired', 'reports/payouts'],
+        'reports' => ['reports/expiring', 'reports/vacant', 'reports/expired', 'reports/payouts', 'reports/settlements'],
     ],
     // Разделите само за служител, който управлява начисленията („четене и запис“ и „всички имоти“).
     'menu_manage_only' => ['utility-imports', 'utility-issues'],

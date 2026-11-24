@@ -152,6 +152,7 @@ Route::middleware('auth')->group(function () {
         Route::get('reports/vacant', [ReportController::class, 'vacant'])->name('reports.vacant');
         Route::get('reports/expired', [ReportController::class, 'expired'])->name('reports.expired');
         Route::get('reports/payouts', [ReportController::class, 'payouts'])->name('reports.payouts');
+        Route::get('reports/settlements', [ReportController::class, 'settlements'])->name('reports.settlements');
 
         // Неразпределени битови сметки (PROJECT.md, част 5, 23.11.2026): вижда всеки служител, решава „управлява начисленията“.
         Route::get('utility-unallocated', [UnallocatedController::class, 'index'])->name('utility-unallocated.index');
