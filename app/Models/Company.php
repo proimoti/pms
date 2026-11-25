@@ -63,16 +63,23 @@ class Company extends Model
         return $this->hasMany(BankAccount::class);
     }
 
-    /** Текущото лого като адрес data: за известието (PDF и писмо) или null (25.11.2026). */
-    public function logoDataUri(): ?string
+    /** Текущото лого: [bytes, mime] или null (25.11.2026). */
+    public function logoFile(): ?array
     {
         $disk = \Illuminate\Support\Facades\Storage::disk('local');
         if ($this->logo_path === null || ! $disk->exists($this->logo_path)) {
             return null;
         }
-        $mime = str_ends_with($this->logo_path, '.png') ? 'image/png' : 'image/jpeg';
 
-        return 'data:'.$mime.';base64,'.base64_encode($disk->get($this->logo_path));
+        return ['bytes' => $disk->get($this->logo_path), 'mime' => str_ends_with($this->logo_path, '.png') ? 'image/png' : 'image/jpeg'];
+    }
+
+    /** Текущото лого като адрес data: за PDF на известието или null. */
+    public function logoDataUri(): ?string
+    {
+        $logo = $this->logoFile();
+
+        return $logo === null ? null : 'data:'.$logo['mime'].';base64,'.base64_encode($logo['bytes']);
     }
 
     /** Сметката „за известията“ (неархивирана) или null (PROJECT.md, 24.11.2026). */

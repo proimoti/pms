@@ -141,6 +141,9 @@ Route::middleware('auth')->group(function () {
         Route::get('statements', [StatementController::class, 'index'])->name('statements.index');
         Route::get('statements/{statement}', [StatementController::class, 'show'])->name('statements.show');
         Route::get('statements/{statement}/pdf', [StatementController::class, 'pdf'])->name('statements.pdf');
+        // Изпращане (24.11.2026): само управляващият начисленията.
+        Route::post('statements/send-month', [StatementController::class, 'sendMonth'])->middleware($manage)->name('statements.send-month');
+        Route::post('statements/{statement}/send', [StatementController::class, 'send'])->middleware($manage)->name('statements.send');
 
         Route::get('charges/create', [ChargeWorksheetController::class, 'create'])->middleware($manage)->name('charges.create');
         Route::post('charges', [ChargeWorksheetController::class, 'store'])->middleware($manage)->name('charges.store');

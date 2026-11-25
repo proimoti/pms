@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Charges;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmailLog;
 use App\Models\Statement;
 use App\Services\Charges\Month;
+use App\Services\Statements\StatementSender;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,13 +46,19 @@ class StatementController extends Controller
             'next' => $month ? Month::key($month->addMonth()) : null,
             'filters' => ['month' => $month?->format('m.Y') ?? '', 'number' => $number, 'contract' => $contract, 'tenant' => $tenant],
             'statements' => $statements,
+            // Последното изпращане на всяко известие (24.11.2026).
+            'lastSend' => EmailLog::query()->whereIn('statement_id', $statements->pluck('id'))->orderBy('id')->get()->keyBy('statement_id'),
+            'canManage' => \App\Models\Concerns\WorksheetRules::canManage($request->user()),
         ]);
     }
 
-    public function show(Statement $statement): View
+    public function show(Request $request, Statement $statement): View
     {
         return view('charges.statements.show', [
             'statement' => $statement->load(['leaseContract', 'tenant', 'issuedBy', 'lines.property', 'lines.paidUtilityBill', 'lines.utilityAccount.provider']),
+            'sends' => EmailLog::query()->with('user')->where('statement_id', $statement->id)->orderBy('id')->get(),
+            'alreadySent' => app(StatementSender::class)->wasSent($statement),
+            'canManage' => \App\Models\Concerns\WorksheetRules::canManage($request->user()),
         ]);
     }
 
@@ -61,5 +69,38 @@ class StatementController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$pdf->filename($statement).'"',
         ]);
+    }
+
+    /** Изпращане на едно известие; повторно — само с потвърждение (24.11.2026). */
+    public function send(Request $request, Statement $statement, StatementSender $sender): RedirectResponse
+    {
+        $back = redirect('/statements/'.$statement->id);
+        if ($sender->wasSent($statement) && ! $request->boolean('confirm_resend')) {
+            return $back->with('warning', __('statements.send.already_sent'));
+        }
+
+        $log = $sender->send($statement);
+
+        return match ($log->status) {
+            EmailLog::NO_EMAIL => $back->with('warning', __('statements.send.no_email_one', ['number' => $statement->number])),
+            EmailLog::FAILED => $back->with('warning', __('statements.send.failed_one', ['number' => $statement->number, 'error' => $log->error])),
+            default => $back->with('status', __('statements.send.sent_one', ['number' => $statement->number])),
+        };
+    }
+
+    /** „Изпрати всички за месеца“: само неизпратените (24.11.2026). */
+    public function sendMonth(Request $request, StatementSender $sender): RedirectResponse
+    {
+        $month = Month::parse($request->input('month'));
+        $result = $sender->sendMonth($month);
+        $numbers = fn (array $list) => implode(', ', array_map(fn ($n) => '№ '.$n, $list));
+        $warnings = array_filter([
+            $result['no_email'] === [] ? null : __('statements.send.skipped_no_email', ['numbers' => $numbers($result['no_email'])]),
+            $result['failed'] === [] ? null : __('statements.send.failed_month', ['numbers' => $numbers($result['failed'])]),
+        ]);
+
+        $redirect = redirect('/statements?month='.Month::key($month))->with('status', __('statements.send.sent_month', ['sent' => $result['sent']]));
+
+        return $warnings === [] ? $redirect : $redirect->with('warning', implode(' ', $warnings));
     }
 }

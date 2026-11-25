@@ -10,7 +10,19 @@
 @section('content')
     <div class="row">
         <h1 style="margin: 0;">{{ $heading }}</h1>
-        <a class="button" style="margin-top: 0;" href="/statements/{{ $statement->id }}/pdf">{{ __('statements.pdf.download') }}</a>
+        <div class="actions">
+            <a class="button secondary" style="margin-top: 0;" href="/statements/{{ $statement->id }}/pdf">{{ __('statements.pdf.download') }}</a>
+            {{-- Изпращане (24.11.2026): само управляващият; повторно — с потвърждение. --}}
+            @if ($canManage)
+                <form method="POST" action="/statements/{{ $statement->id }}/send" class="actions">
+                    @csrf
+                    @if ($alreadySent)
+                        <label style="margin: 0; font-weight: normal;"><input type="checkbox" name="confirm_resend" value="1" required> {{ __('statements.send.confirm_resend') }}</label>
+                    @endif
+                    <button type="submit" style="margin-top: 0;">{{ $alreadySent ? __('statements.send.resend') : __('statements.send.button') }}</button>
+                </form>
+            @endif
+        </div>
     </div>
     <p class="muted">{{ __('charges.statements.not_invoice') }}</p>
     @if (($statement->snapshot['bank'] ?? null) === null)
@@ -61,4 +73,29 @@
             </tfoot>
         </table>
     </div>
+
+    {{-- Изпращанията от email_log (без съдържанието). --}}
+    @if ($sends->isNotEmpty())
+        @php($sf = 'statements.send.fields.')
+        <h2>{{ __('statements.send.history') }}</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr><th>{{ __($sf.'date') }}</th><th>{{ __($sf.'intended') }}</th><th>{{ __($sf.'delivered') }}</th><th>{{ __($sf.'mode') }}</th><th>{{ __($sf.'result') }}</th><th>{{ __($sf.'user') }}</th></tr>
+                </thead>
+                <tbody>
+                @foreach ($sends as $log)
+                    <tr>
+                        <td class="nowrap">{{ $log->sent_at->format('d.m.Y H:i') }}</td>
+                        <td>{{ $log->intended_to ?? __('registry.none') }}</td>
+                        <td>{{ $log->delivered_to ?? __('registry.none') }}</td>
+                        <td>{{ $log->mode ? __('statements.send.modes.'.$log->mode) : __('registry.none') }}</td>
+                        <td>{{ __('statements.send.results.'.$log->status) }}@if ($log->error) <div class="muted">{{ $log->error }}</div>@endif</td>
+                        <td>{{ $log->user?->name }}</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 @endsection

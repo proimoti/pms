@@ -15,6 +15,13 @@
                 <a href="/statements?month={{ $previous }}">‹ {{ Month::label($month->subMonth()) }}</a>
                 <a href="/statements?month={{ $next }}">{{ Month::label($month->addMonth()) }} ›</a>
                 <a href="/charges?month={{ Month::key($month) }}">{{ __('charges.upcoming.back') }}</a>
+                @if ($canManage && $statements->isNotEmpty())
+                    <form method="POST" action="/statements/send-month" onsubmit="return confirm(@js(__('statements.send.send_month_confirm')))">
+                        @csrf
+                        <input type="hidden" name="month" value="{{ Month::key($month) }}">
+                        <button type="submit" style="margin-top: 0;">{{ __('statements.send.send_month') }}</button>
+                    </form>
+                @endif
             </div>
         @endif
     </div>
@@ -55,6 +62,7 @@
                     <th>{{ __('charges.fields.tenant') }}</th>
                     <th class="num">{{ __('charges.statements.total') }}</th>
                     <th>{{ __('charges.statements.issued_at') }}</th>
+                    <th>{{ __('statements.send.column') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -66,6 +74,7 @@
                         <td>{{ $statement->tenant?->name }}</td>
                         <td class="num">{{ Format::money($statement->total) }}</td>
                         <td>{{ $statement->issued_at->format('d.m.Y') }}</td>
+                        <td class="nowrap">@include('charges.statements.send-status', ['log' => $lastSend[$statement->id] ?? null])</td>
                     </tr>
                 @endforeach
                 </tbody>
