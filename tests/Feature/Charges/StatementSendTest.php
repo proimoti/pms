@@ -91,11 +91,13 @@ class StatementSendTest extends ScreenTestCase
 
         [$email] = $this->sent();
         $this->assertSame([self::REDIRECT], array_map(fn ($a) => $a->getAddress(), $email->getTo()));
-        $this->assertSame('[ТЕСТ] '.__('statements.send.subject', ['number' => $this->statement->number, 'month' => 'Януари 2027']), $email->getSubject());
+        $this->assertSame('[ТЕСТ → Борис Измислен] '.__('statements.send.subject', ['number' => $this->statement->number, 'month' => 'Януари 2027']), $email->getSubject());
         $html = $email->getHtmlBody();
-        foreach (['Борис Измислен', 'boris@example.test', __('statements.pdf.due_on').': 15.01.2027', '500,00', 'BG80 BNBG 9661 1020 3456 78'] as $needle) {
+        foreach (['Борис Измислен', __('statements.pdf.due_on').': 15.01.2027', '500,00', 'BG80 BNBG 9661 1020 3456 78'] as $needle) {
             $this->assertStringContainsString($needle, $html, $needle);
         }
+        $this->assertStringNotContainsString('boris@example.test', $html);
+        $this->assertStringNotContainsString('ТЕСТ', $html);
         [$attachment] = $email->getAttachments();
         $this->assertSame('izvestie-'.$this->statement->number.'.pdf', $attachment->getFilename());
         $this->assertSame('application/pdf', $attachment->getContentType());
@@ -254,11 +256,13 @@ class StatementSendTest extends ScreenTestCase
     public function test_logo_is_embedded_in_the_mail(): void
     {
         \Illuminate\Support\Facades\Storage::fake('local');
-        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 200, 80)]);
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 400, 200)]);
 
         $this->post("/statements/{$this->statement->id}/send");
         [$email] = $this->sent();
         $this->assertStringContainsString('src="cid:', $email->getHtmlBody());
+        // В писмото логото е до 200 × 60 px, с пропорциите (400 × 200 → 120 × 60), 25.11.2026.
+        $this->assertMatchesRegularExpression('#<img src="cid:[^"]+" alt="" width="120" height="60"#', $email->getHtmlBody());
         $this->assertStringNotContainsString('data:image', $email->getHtmlBody());
     }
 

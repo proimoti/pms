@@ -22,7 +22,8 @@ use Tests\TestCase;
  * Всяко писмо на приложението минава през него:
  *
  * - MAIL_REDIRECT_TO попълнено → всичко отива само на този адрес, темата
- *   започва с „[ТЕСТ]“, а в писмото пише за кого и на кой адрес е било;
+ *   започва с „[ТЕСТ → Име на получателя]“; текстът на писмото не се пипа
+ *   (адресът на получателя е в email_log, 25.11.2026);
  * - празно и не production → писмото само се записва в лога, нищо не излиза;
  * - production и празно → истинско изпращане.
  *
@@ -81,10 +82,9 @@ class MailGuardTest extends TestCase
             $this->assertSame([self::REDIRECT], $this->addresses($email->getTo()), $env);
             $this->assertSame([], $email->getCc(), $env);
             $this->assertSame([], $email->getBcc(), $env);
-            $this->assertStringStartsWith('[ТЕСТ] ', $email->getSubject(), $env);
-            $this->assertStringContainsString('Иван Измислен', $email->getHtmlBody());
-            $this->assertStringContainsString(self::TENANT, $email->getHtmlBody());
-            $this->assertStringContainsString('Сума за плащане: 500,00 €', $email->getHtmlBody());
+            $this->assertSame('[ТЕСТ → Иван Измислен] Известие № 26', $email->getSubject(), $env);
+            // Без рамка и без адреса на получателя в текста: писмото е както би отишло.
+            $this->assertSame('<p>Сума за плащане: 500,00 €</p>', $email->getHtmlBody(), $env);
         }
     }
 
@@ -143,7 +143,8 @@ class MailGuardTest extends TestCase
         $this->post('/forgot-password', ['email' => User::factory()->tenant()->create(['email' => 'second@example.test'])->email]);
         [$email] = $this->sent();
         $this->assertSame([self::REDIRECT], $this->addresses($email->getTo()));
-        $this->assertStringContainsString('second@example.test', $email->getHtmlBody());
+        $this->assertStringStartsWith('[ТЕСТ', $email->getSubject());
+        $this->assertStringNotContainsString('second@example.test', $email->getSubject());
     }
 
     // email_log

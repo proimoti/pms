@@ -11,8 +11,8 @@ use Symfony\Component\Mime\Email;
  * Пазачът на пощата (PROJECT.md, „PDF и имейл на известията“, 24.11.2026).
  * Всяко писмо на приложението (известия, забравена парола и др.) минава оттук:
  *
- * - MAIL_REDIRECT_TO попълнено → само на този адрес, с „[ТЕСТ]“ в темата и
- *   бележка за кого и на кой адрес е било (без копия);
+ * - MAIL_REDIRECT_TO попълнено → само на този адрес, без копия, с „[ТЕСТ → Име]“
+ *   в темата (25.11.2026);
  * - празно и APP_ENV не е production → нищо не излиза, писмото се записва
  *   само в лога (локално там има само измислени данни);
  * - APP_ENV=production и празно → истинско изпращане.
@@ -59,29 +59,21 @@ final class MailGuard
         };
     }
 
+    /**
+     * Пренасочване: само на адреса от MAIL_REDIRECT_TO, без копия. За кого е било
+     * се вижда само в темата: „[ТЕСТ → Име] …“ (25.11.2026). Адресът е в email_log;
+     * текстът на писмото не се пипа.
+     */
     private function redirect(Email $email): ?bool
     {
-        $intended = $this->list($email->getTo());
-        $copies = $this->list(array_merge($email->getCc(), $email->getBcc()));
-        $note = 'ТЕСТ: писмото е било за '.($intended === '' ? '—' : $intended).($copies === '' ? '' : ' (копия: '.$copies.')')
-            .'. Пренасочено към '.$this->redirectTo().' (MAIL_REDIRECT_TO).';
+        $names = implode(', ', array_filter(array_map(fn (Address $a) => $a->getName(), $email->getTo())));
 
         $headers = $email->getHeaders();
         foreach (['To', 'Cc', 'Bcc'] as $name) {
             $headers->remove($name);
         }
         $email->to(new Address($this->redirectTo()));
-        $email->subject('[ТЕСТ] '.$email->getSubject());
-
-        $html = $email->getHtmlBody();
-        if ($html !== null) {
-            $box = '<div style="border:2px solid #b42318;padding:8px 12px;margin-bottom:16px;font-family:sans-serif;">'.e($note).'</div>';
-            $email->html(is_string($html) ? $box.$html : $box.stream_get_contents($html));
-        }
-        $text = $email->getTextBody();
-        if ($text !== null) {
-            $email->text($note."\n\n".(is_string($text) ? $text : stream_get_contents($text)));
-        }
+        $email->subject(($names === '' ? '[ТЕСТ] ' : '[ТЕСТ → '.$names.'] ').$email->getSubject());
 
         return null;
     }
@@ -108,11 +100,5 @@ final class MailGuard
         $value = trim((string) config('mail.redirect_to'));
 
         return $value === '' ? null : $value;
-    }
-
-    /** @param list<Address> $addresses */
-    private function list(array $addresses): string
-    {
-        return implode(', ', array_map(fn (Address $a) => $a->getName() !== '' ? $a->getName().' <'.$a->getAddress().'>' : $a->getAddress(), $addresses));
     }
 }

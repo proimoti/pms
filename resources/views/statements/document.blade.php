@@ -11,7 +11,10 @@
     <table style="width: 100%; border-collapse: collapse;">
         <tr>
             <td style="vertical-align: top; width: 55%;" id="company">
-                @if (! empty($logo))<img src="{{ $logo }}" alt="" style="max-height: 60px; max-width: 220px; margin-bottom: 8px;"><br>@endif
+                @if (! empty($logo) && ! empty($logoSize))
+                    {{-- В писмото (25.11.2026): с точни размери до 200 × 60 px, защото пощенските програми не спазват max-height. --}}
+                    <img src="{{ $logo }}" alt="" width="{{ $logoSize[0] }}" height="{{ $logoSize[1] }}" style="display: block; border: 0; margin-bottom: 8px;">
+                @elseif (! empty($logo))<img src="{{ $logo }}" alt="" style="max-height: 60px; max-width: 220px; margin-bottom: 8px;"><br>@endif
                 <div style="font-size: 14px; font-weight: bold;">{{ $company['name'] ?? '' }}</div>
                 @if (! empty($company['eik']))<div>{{ __($p.'eik') }} {{ $company['eik'] }}@if (! empty($company['vat_number'])) · {{ __($p.'vat') }} {{ $company['vat_number'] }}@endif</div>@endif
                 @if (! empty($company['address']))<div>{{ $company['address'] }}</div>@endif

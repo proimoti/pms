@@ -7,6 +7,10 @@
         {{ __('statements.send.intro', ['number' => $statement->number, 'month' => mb_strtolower(\App\Services\Charges\Month::label($statement->month))]) }}
     </p>
     @php($logo = $logoData ? $message->embedData($logoData['bytes'], 'logo.'.($logoData['mime'] === 'image/png' ? 'png' : 'jpg'), $logoData['mime']) : null)
-    @include('statements.document', ['statement' => $statement, 'logo' => $logo])
+    {{-- Логото в писмото: до 200 × 60 px, с пропорциите (25.11.2026). --}}
+    @php($size = $logoData ? @getimagesizefromstring($logoData['bytes']) : false)
+    @php($scale = $size ? min(1, 200 / max(1, $size[0]), 60 / max(1, $size[1])) : 1)
+    @php($logoSize = $size ? [max(1, (int) round($size[0] * $scale)), max(1, (int) round($size[1] * $scale))] : null)
+    @include('statements.document', ['statement' => $statement, 'logo' => $logo, 'logoSize' => $logoSize])
 </body>
 </html>
