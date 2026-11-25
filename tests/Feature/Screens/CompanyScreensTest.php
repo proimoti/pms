@@ -103,6 +103,59 @@ class CompanyScreensTest extends ScreenTestCase
         $this->assertSame(['created', 'updated'], AuditLog::query()->where('auditable_type', 'bank_accounts')->where('auditable_id', $account->id)->orderBy('id')->pluck('event')->all());
     }
 
+    // Лого (PROJECT.md, „Вид на известието“, 25.11.2026): PNG или JPG до 1 MB, в storage, не в public.
+
+    public function test_admin_uploads_replaces_and_removes_the_logo(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 300, 120)])
+            ->assertRedirect('/company')->assertSessionHasNoErrors();
+        $path = $this->company->fresh()->logo_path;
+        $this->assertSame('logos/'.$this->company->id.'.png', $path);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($path);
+        $this->assertFileDoesNotExist(public_path($path));
+        $this->get('/company')->assertSee('src="/company/logo"', false);
+        $this->get('/company/logo')->assertOk()->assertHeader('content-type', 'image/png');
+
+        // Нов JPG заменя стария.
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.jpg', 100, 40)])->assertRedirect('/company');
+        $this->assertSame('logos/'.$this->company->id.'.jpg', $this->company->fresh()->logo_path);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($path);
+
+        $this->post('/company/logo/remove')->assertRedirect('/company');
+        $this->assertNull($this->company->fresh()->logo_path);
+        $this->assertSame([], \Illuminate\Support\Facades\Storage::disk('local')->files('logos'));
+        $this->get('/company/logo')->assertNotFound();
+    }
+
+    public function test_logo_must_be_a_real_png_or_jpg_up_to_1_mb(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->create('logo.png', 10, 'application/pdf')])->assertSessionHasErrors('logo');
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->createWithContent('logo.png', 'не е картинка')])->assertSessionHasErrors('logo');
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.gif')])->assertSessionHasErrors('logo');
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png')->size(1100)])->assertSessionHasErrors('logo');
+        $this->assertNull($this->company->fresh()->logo_path);
+        $this->assertSame([], \Illuminate\Support\Facades\Storage::disk('local')->allFiles());
+    }
+
+    public function test_only_the_admin_changes_the_logo_and_other_companies_do_not_see_it(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png')]);
+
+        auth()->logout();
+        $this->actingAs($this->staff());
+        $this->post('/company/logo', ['logo' => \Illuminate\Http\UploadedFile::fake()->image('other.png')])->assertForbidden();
+        $this->post('/company/logo/remove')->assertForbidden();
+
+        auth()->logout();
+        $this->actingAs($this->staff(['is_company_admin' => true], $this->otherCompany));
+        $this->get('/company/logo')->assertNotFound();
+    }
+
     public function test_staff_who_is_not_company_admin_cannot_see_or_change_it(): void
     {
         $account = $this->account(self::IBAN_A);

@@ -30,6 +30,7 @@ class Statement extends Model
             'month' => 'immutable_date',
             'total' => 'decimal:2',
             'issued_at' => 'immutable_datetime',
+            'snapshot' => 'array',
         ];
     }
 

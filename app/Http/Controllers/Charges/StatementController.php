@@ -53,4 +53,13 @@ class StatementController extends Controller
             'statement' => $statement->load(['leaseContract', 'tenant', 'issuedBy', 'lines.property', 'lines.paidUtilityBill', 'lines.utilityAccount.provider']),
         ]);
     }
+
+    /** PDF на известието (24.11.2026): при поискване, без пазене на файл. */
+    public function pdf(Statement $statement, \App\Services\Statements\StatementPdf $pdf): \Symfony\Component\HttpFoundation\Response
+    {
+        return response($pdf->pdf($statement), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$pdf->filename($statement).'"',
+        ]);
+    }
 }

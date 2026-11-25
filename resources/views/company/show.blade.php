@@ -21,6 +21,25 @@
         <dt>{{ __($f.'phone') }}</dt><dd>{{ $company->phone ?? __('registry.none') }}</dd>
     </dl>
 
+    {{-- Лого (25.11.2026): в storage, показва се оттук само на администратора. --}}
+    <h2>{{ __('company.logo') }}</h2>
+    <div class="panel" style="margin-top: 0;">
+        @if ($company->logo_path)
+            <img src="/company/logo" alt="{{ __('company.logo') }}" style="max-height: 70px; max-width: 260px; display: block; margin-bottom: 10px;">
+        @else
+            <p class="muted" style="margin-top: 0;">{{ __('company.logo_none') }}</p>
+        @endif
+        <form method="POST" action="/company/logo" enctype="multipart/form-data" class="row" style="justify-content: flex-start;">
+            @csrf
+            <input type="file" name="logo" accept="image/png,image/jpeg" aria-label="{{ __('company.logo') }}" style="max-width: 320px;">
+            <button type="submit" class="secondary" style="margin-top: 0;">{{ __('company.logo_upload') }}</button>
+        </form>
+        @if ($company->logo_path)
+            <form method="POST" action="/company/logo/remove" style="margin-top: 8px;">@csrf<button type="submit" class="secondary" style="margin-top: 0;">{{ __('company.logo_remove') }}</button></form>
+        @endif
+        <p class="muted" style="margin-bottom: 0;">{{ __('company.logo_hint') }}</p>
+    </div>
+
     <div class="row" style="margin-top: 22px;">
         <h2 style="margin: 0;">{{ __('company.bank_accounts') }}</h2>
         <a class="button secondary" style="margin-top: 0;" href="/company/bank-accounts/create">{{ __('company.bank.new') }}</a>

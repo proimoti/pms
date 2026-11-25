@@ -288,6 +288,9 @@ class Issuer
         $statement->forceFill([
             'number' => $number, 'month' => $start, 'lease_contract_id' => $lease->id, 'tenant_id' => $lease->tenant_id,
             'total' => Cents::format($total), 'issued_at' => now(), 'issued_by' => Auth::id(),
+            // Данните на фирмата, наемателя и сметката към момента (PROJECT.md, 24.11.2026).
+            'snapshot' => app(\App\Services\Statements\StatementSnapshot::class)->build($this->companyId(), $lease->tenant_id)
+                + ['due_on' => \App\Services\Statements\StatementSnapshot::dueOn($start, now())],
         ])->save();
 
         foreach ($rows as $row) {

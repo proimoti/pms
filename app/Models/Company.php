@@ -41,7 +41,7 @@ class Company extends Model
      */
     protected function needsCompanyAdmin(): bool
     {
-        return $this->exists && $this->isDirty(['name', 'eik', 'vat_number', 'manager_name', 'address', 'email', 'phone']);
+        return $this->exists && $this->isDirty(['name', 'eik', 'vat_number', 'manager_name', 'address', 'email', 'phone', 'logo_path']);
     }
 
     /** В журнала са промените на данните (екранът „Фирма“), не създаването на фирмата (с команда). */
@@ -61,6 +61,18 @@ class Company extends Model
     public function bankAccounts(): HasMany
     {
         return $this->hasMany(BankAccount::class);
+    }
+
+    /** Текущото лого като адрес data: за известието (PDF и писмо) или null (25.11.2026). */
+    public function logoDataUri(): ?string
+    {
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        if ($this->logo_path === null || ! $disk->exists($this->logo_path)) {
+            return null;
+        }
+        $mime = str_ends_with($this->logo_path, '.png') ? 'image/png' : 'image/jpeg';
+
+        return 'data:'.$mime.';base64,'.base64_encode($disk->get($this->logo_path));
     }
 
     /** Сметката „за известията“ (неархивирана) или null (PROJECT.md, 24.11.2026). */

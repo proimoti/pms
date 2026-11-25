@@ -8,8 +8,14 @@
 @section('width', 'wide')
 
 @section('content')
-    <h1>{{ $heading }}</h1>
+    <div class="row">
+        <h1 style="margin: 0;">{{ $heading }}</h1>
+        <a class="button" style="margin-top: 0;" href="/statements/{{ $statement->id }}/pdf">{{ __('statements.pdf.download') }}</a>
+    </div>
     <p class="muted">{{ __('charges.statements.not_invoice') }}</p>
+    @if (($statement->snapshot['bank'] ?? null) === null)
+        <div class="warning">{{ __('statements.pdf.no_bank_warning') }}</div>
+    @endif
 
     <dl>
         <dt>{{ __('charges.fields.month') }}</dt><dd>{{ Month::label($statement->month) }}</dd>

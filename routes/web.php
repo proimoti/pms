@@ -41,6 +41,9 @@ Route::middleware('auth')->group(function () {
         // „Фирма“ (24.11.2026): само администраторът на фирмата (проверката е в контролера и в моделите).
         Route::get('company', [\App\Http\Controllers\CompanyController::class, 'show'])->name('company.show');
         Route::get('company/edit', [\App\Http\Controllers\CompanyController::class, 'edit'])->name('company.edit');
+        Route::get('company/logo', [\App\Http\Controllers\CompanyController::class, 'logo'])->name('company.logo');
+        Route::post('company/logo', [\App\Http\Controllers\CompanyController::class, 'uploadLogo'])->name('company.logo.upload');
+        Route::post('company/logo/remove', [\App\Http\Controllers\CompanyController::class, 'removeLogo'])->name('company.logo.remove');
         Route::put('company', [\App\Http\Controllers\CompanyController::class, 'update'])->name('company.update');
         Route::get('company/bank-accounts/create', [\App\Http\Controllers\CompanyController::class, 'createAccount'])->name('company.accounts.create');
         Route::post('company/bank-accounts', [\App\Http\Controllers\CompanyController::class, 'storeAccount'])->name('company.accounts.store');
@@ -137,6 +140,7 @@ Route::middleware('auth')->group(function () {
         Route::post('charges/corrections/manual', [CorrectionController::class, 'store'])->middleware($manage)->name('charges.corrections.store');
         Route::get('statements', [StatementController::class, 'index'])->name('statements.index');
         Route::get('statements/{statement}', [StatementController::class, 'show'])->name('statements.show');
+        Route::get('statements/{statement}/pdf', [StatementController::class, 'pdf'])->name('statements.pdf');
 
         Route::get('charges/create', [ChargeWorksheetController::class, 'create'])->middleware($manage)->name('charges.create');
         Route::post('charges', [ChargeWorksheetController::class, 'store'])->middleware($manage)->name('charges.store');
