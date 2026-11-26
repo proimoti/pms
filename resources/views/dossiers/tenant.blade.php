@@ -11,7 +11,8 @@
             <dt>{{ __('dossiers.owes_total') }}</dt><dd><strong>@include('dossiers.owes-amount', ['amount' => $owes['total']])</strong></dd>
             @foreach ($leases as $lease)
                 <dt><a href="/lease-contracts/{{ $lease->id }}">{{ __('registry.one.lease-contracts') }} № {{ $lease->number }}</a></dt>
-                <dd>@include('dossiers.owes-amount', ['amount' => $owes['contracts'][$lease->id] ?? '0.00'])</dd>
+                <dd>@include('dossiers.owes-amount', ['amount' => $owes['contracts'][$lease->id] ?? '0.00'])
+                    @if (\App\Models\Concerns\WorksheetRules::canManage(auth()->user())) · <a href="/lease-contracts/{{ $lease->id }}/payments/create">{{ __('payments.new') }}</a>@endif</dd>
             @endforeach
         </dl>
     </section>

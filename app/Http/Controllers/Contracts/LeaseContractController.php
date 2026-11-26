@@ -104,6 +104,10 @@ class LeaseContractController extends RegistryController
             'entries' => LedgerEntry::query()->where('lease_contract_id', $contract->id)->orderBy('month')->orderBy('id')->get(),
             'owes' => app(\App\Services\Dossiers\Dossier::class)->leaseOwes($contract),
             'statements' => app(\App\Services\Dossiers\Dossier::class)->leaseStatements($contract),
+            // Плащанията по договора (26.11.2026), най-новите първи.
+            'payments' => \App\Models\Payment::query()->with(['bankAccount', 'createdBy', 'reversal'])->where('lease_contract_id', $contract->id)
+                ->whereNull('reversal_of_id')->orderByDesc('paid_on')->orderByDesc('id')->get(),
+            'canPay' => \App\Models\Concerns\WorksheetRules::canManage(auth()->user()),
             'canIssue' => WorksheetRules::canManage(auth()->user()) && ! $contract->isArchived(),
         ]);
     }

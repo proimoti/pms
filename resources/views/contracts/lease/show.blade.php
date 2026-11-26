@@ -149,6 +149,8 @@
         </ul>
     @endif
 
+    @include('payments.list', ['contract' => $contract, 'payments' => $payments, 'canPay' => $canPay])
+
     <h2>{{ __('charges.issue.ledger') }}</h2>
     @if ($entries->isEmpty())
         <p class="muted">{{ __('charges.issue.no_entries') }}</p>

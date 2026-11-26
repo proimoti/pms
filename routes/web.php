@@ -143,6 +143,10 @@ Route::middleware('auth')->group(function () {
         Route::get('statements', [StatementController::class, 'index'])->name('statements.index');
         Route::get('statements/{statement}', [StatementController::class, 'show'])->name('statements.show');
         Route::get('statements/{statement}/pdf', [StatementController::class, 'pdf'])->name('statements.pdf');
+        // Плащания от наематели (26.11.2026): само управляващият начисленията.
+        Route::get('lease-contracts/{contract}/payments/create', [\App\Http\Controllers\Payments\PaymentController::class, 'create'])->middleware($manage)->name('payments.create');
+        Route::post('lease-contracts/{contract}/payments', [\App\Http\Controllers\Payments\PaymentController::class, 'store'])->middleware($manage)->name('payments.store');
+        Route::post('payments/{payment}/reverse', [\App\Http\Controllers\Payments\PaymentController::class, 'reverse'])->middleware($manage)->name('payments.reverse');
         // Експорт към Микроинвест (26.11.2026): само управляващият начисленията.
         Route::get('export', [\App\Http\Controllers\Charges\ExportController::class, 'index'])->middleware($manage)->name('export.index');
         Route::post('export/batches', [\App\Http\Controllers\Charges\ExportController::class, 'store'])->middleware($manage)->name('export.store');

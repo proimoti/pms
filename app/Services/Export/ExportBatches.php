@@ -24,6 +24,9 @@ use Illuminate\Validation\ValidationException;
  */
 final class ExportBatches
 {
+    /** Видовете записи, които не влизат в пакетите. */
+    public const NOT_EXPORTED = ['payment', 'payment_reversal'];
+
     public function __construct(private readonly ExportSettings $settings) {}
 
     private function companyId(): int
@@ -40,7 +43,9 @@ final class ExportBatches
     /** Неекспортираните записи за месеца. */
     public function pending(CarbonImmutable $month): Builder
     {
+        // Плащанията и изплащанията не се експортират (PROJECT.md, т. 4 и „Плащания и салда“).
         return $this->ledger()->whereDate('month', $month->startOfMonth()->toDateString())
+            ->whereNotIn('kind', self::NOT_EXPORTED)
             ->whereNotIn('id', ExportBatchEntry::query()->select('ledger_entry_id'));
     }
 
