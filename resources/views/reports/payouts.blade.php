@@ -32,7 +32,7 @@
                 <tr>
                     <th>{{ __($c.'beneficiary') }}</th><th>{{ __($c.'payment_method') }}</th><th>{{ __($c.'iban') }}</th>
                     <th>{{ __($c.'contract') }}</th><th>{{ __($c.'owner') }}</th><th>{{ __($c.'properties') }}</th>
-                    <th class="num">{{ __('reports.payouts.amount') }}</th><th>{{ __($c.'note') }}</th>
+                    <th class="num">{{ __('reports.payouts.amount') }}</th><th class="num">{{ __('payouts.report.paid') }}</th><th class="num">{{ __('payouts.report.left') }}</th><th>{{ __($c.'note') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -54,13 +54,20 @@
                             <td>@if ($row['owner'])<a href="/owners/{{ $row['owner']->id }}">{{ $row['owner']->name }}</a>@endif</td>
                             <td>@include('reports.properties', ['properties' => $row['properties']])</td>
                             <td class="num">{{ Format::money($row['amount']) }}</td>
-                            <td>@if ($row['changed']){{ __('reports.payouts.changed') }}@endif</td>
+                            <td class="num">{{ Format::money($row['paid']) }}</td>
+                            <td class="num">{{ Format::money($row['left']) }}</td>
+                            <td>
+                                @if ($row['changed']){{ __('reports.payouts.changed') }}@endif
+                                @if ($canPay && (float) $row['left'] > 0)
+                                    <a class="button secondary" style="margin-top: 0;" href="/owner-contracts/{{ $row['contract']->id }}/payouts/create?amount={{ $row['left'] }}">{{ __('payouts.report.button') }}</a>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                     <tr>
                         <th colspan="6">{{ __('reports.payouts.total') }}: {{ $group['name'] }}</th>
                         <th class="num">{{ Format::money($group['total']) }}</th>
-                        <th></th>
+                        <th colspan="3"></th>
                     </tr>
                 @endforeach
                 </tbody>

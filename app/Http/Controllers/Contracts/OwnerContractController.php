@@ -115,6 +115,11 @@ class OwnerContractController extends RegistryController
             'contract' => $contract,
             'annexNumbers' => $contract->annexes->pluck('number', 'id'),
             'ownerEntries' => app(\App\Services\Dossiers\Dossier::class)->ownerEntries($contract),
+            // Изплащания (26.11.2026): начислено, изплатено, остава и списъкът.
+            'payoutState' => app(\App\Services\Payments\OwnerAllocation::class)->forContract((int) $contract->company_id, $contract->id),
+            'payouts' => \App\Models\OwnerPayout::query()->with(['beneficiary', 'bankAccount', 'createdBy', 'reversal'])->where('owner_contract_id', $contract->id)
+                ->whereNull('reversal_of_id')->orderByDesc('paid_on')->orderByDesc('id')->get(),
+            'canPay' => \App\Models\Concerns\WorksheetRules::canManage(auth()->user()),
         ]);
     }
 

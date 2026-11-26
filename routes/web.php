@@ -147,6 +147,10 @@ Route::middleware('auth')->group(function () {
         Route::get('lease-contracts/{contract}/payments/create', [\App\Http\Controllers\Payments\PaymentController::class, 'create'])->middleware($manage)->name('payments.create');
         Route::post('lease-contracts/{contract}/payments', [\App\Http\Controllers\Payments\PaymentController::class, 'store'])->middleware($manage)->name('payments.store');
         Route::get('payments', [\App\Http\Controllers\Payments\PaymentController::class, 'index'])->name('payments.index');
+        // Изплащания към собственици (26.11.2026): само управляващият начисленията.
+        Route::get('owner-contracts/{contract}/payouts/create', [\App\Http\Controllers\Payments\PayoutController::class, 'create'])->middleware($manage)->name('payouts.create');
+        Route::post('owner-contracts/{contract}/payouts', [\App\Http\Controllers\Payments\PayoutController::class, 'store'])->middleware($manage)->name('payouts.store');
+        Route::post('payouts/{payout}/reverse', [\App\Http\Controllers\Payments\PayoutController::class, 'reverse'])->middleware($manage)->name('payouts.reverse');
         Route::get('payments/batch', [\App\Http\Controllers\Payments\PaymentController::class, 'batchForm'])->middleware($manage)->name('payments.batch');
         Route::post('payments/batch', [\App\Http\Controllers\Payments\PaymentController::class, 'batchStore'])->middleware($manage)->name('payments.batch.store');
         Route::post('payments/{payment}/reverse', [\App\Http\Controllers\Payments\PaymentController::class, 'reverse'])->middleware($manage)->name('payments.reverse');

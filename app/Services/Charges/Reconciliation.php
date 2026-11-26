@@ -385,12 +385,13 @@ class Reconciliation
     /**
      * Записите в книгата на фирмата за наемателите и собствениците (без филтъра
      * „само прикачените“: сметката е за целия месец). Платените битови сметки
-     * (407) не са издаване и не се броят тук.
+     * (407) не са издаване и не се броят тук; плащанията и изплащанията — също.
      */
     private function entries()
     {
         return LedgerEntry::query()->withoutGlobalScope(RegistryVisibilityScope::class)
-            ->whereIn('account', [LedgerAccount::Tenant, LedgerAccount::Deposit, LedgerAccount::Owner]);
+            ->whereIn('account', [LedgerAccount::Tenant, LedgerAccount::Deposit, LedgerAccount::Owner])
+            ->whereNotIn('kind', LedgerKind::money()); // плащанията и изплащанията не са начисления (26.11.2026)
     }
 
     private function companyId(): int

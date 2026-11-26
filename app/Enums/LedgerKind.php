@@ -14,4 +14,12 @@ enum LedgerKind: string
     case ManagerCost = 'manager_cost'; // за сметка на управителя: остатък на сметка (407 на имота, −; + при отмяна)
     case Payment = 'payment';                 // плащане от наемател (418 −), 26.11.2026
     case PaymentReversal = 'payment_reversal'; // сторно на плащане (418 +)
+    case Payout = 'payout';                   // изплащане към собственик (408 −), 26.11.2026
+    case PayoutReversal = 'payout_reversal';  // сторно на изплащане (408 +)
+
+    /** Видовете, които са плащане или изплащане (не начисление). */
+    public static function money(): array
+    {
+        return [self::Payment->value, self::PaymentReversal->value, self::Payout->value, self::PayoutReversal->value];
+    }
 }

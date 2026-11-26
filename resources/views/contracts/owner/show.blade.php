@@ -182,6 +182,8 @@
     @endif
     <p class="muted">{{ __('contracts.screens.hints.amount_fields') }}</p>
 
+    @include('payouts.list', ['contract' => $contract, 'state' => $payoutState, 'payouts' => $payouts, 'canPay' => $canPay])
+
     {{-- Досие (23.11.2026): записите по 408 към собственика. --}}
     <h2>{{ __('dossiers.sections.ledger_408') }}</h2>
     @if ($ownerEntries->isEmpty())

@@ -119,7 +119,9 @@ final class Reports
         $month = $month->startOfMonth()->startOfDay();
         $last = $month->endOfMonth()->startOfDay();
 
+        // Само начисленото (без изплащанията, 26.11.2026).
         $sums = LedgerEntry::query()->where('account', LedgerAccount::Owner->value)->whereDate('month', $month->toDateString())
+            ->whereNotIn('kind', \App\Enums\LedgerKind::money())
             ->groupBy('owner_contract_id', 'property_id')->selectRaw('owner_contract_id, property_id, SUM(amount) as total')->get();
 
         $groups = [];
@@ -149,6 +151,9 @@ final class Reports
                 'contract' => $contract, 'owner' => $contract->owner,
                 'properties' => Property::query()->whereIn('id', $parts->pluck('property_id'))->orderBy('number')->get(),
                 'amount' => Cents::format($cents),
+                // Изплатено и остава за месеца (най-старите месеци първи, 26.11.2026).
+                'paid' => Cents::format($paid = app(\App\Services\Payments\OwnerAllocation::class)->paidForMonth((int) $contract->company_id, $contract->id, $month->format('Y-m'))),
+                'left' => Cents::format($cents - $paid),
                 'changed' => $first !== null && $payee !== null && ($first->beneficiary_id !== $payee->beneficiary_id || $first->payment_method !== $payee->payment_method),
             ];
         }

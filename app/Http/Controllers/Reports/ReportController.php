@@ -94,16 +94,16 @@ class ReportController extends Controller
                         $group['name'], $group['method'] ? __('contracts.payment_methods.'.$group['method']) : '',
                         $group['iban'] ?? ($group['missing_iban'] ? __('reports.payouts.missing_iban') : ''),
                         '№ '.$row['contract']->number, $row['owner']?->name, $this->numbers($row['properties']),
-                        (float) $row['amount'], $row['changed'] ? __('reports.payouts.changed') : '',
+                        (float) $row['amount'], (float) $row['paid'], (float) $row['left'], $row['changed'] ? __('reports.payouts.changed') : '',
                     ];
                 }
             }
 
             return $this->xlsx('za-izplashtane-'.$month->format('Y-m'), [__($c.'beneficiary'), __($c.'payment_method'), __($c.'iban'), __($c.'contract'),
-                __($c.'owner'), __($c.'properties'), __('reports.payouts.amount'), __($c.'note')], $rows);
+                __($c.'owner'), __($c.'properties'), __('reports.payouts.amount'), __('payouts.report.paid'), __('payouts.report.left'), __($c.'note')], $rows);
         }
 
-        return response()->view('reports.payouts', ['data' => $data, 'month' => $month]);
+        return response()->view('reports.payouts', ['data' => $data, 'month' => $month, 'canPay' => \App\Models\Concerns\WorksheetRules::canManage($request->user())]);
     }
 
     /**
