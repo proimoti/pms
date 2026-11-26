@@ -14,22 +14,16 @@
             <table>
                 <thead>
                 <tr>
+                    <th class="col-no">{{ __('utilities.funds.columns.number') }}</th>
                     <th>{{ __('utilities.funds.fields.name') }}</th>
-                    <th>{{ __('utilities.funds.columns.analytic') }}</th>
                     <th>{{ __('utilities.funds.fields.properties') }}</th>
                 </tr>
                 </thead>
                 <tbody>
                 @foreach ($funds as $fund)
                     <tr data-href="/funds/{{ $fund->id }}">
-                        <td><a href="/funds/{{ $fund->id }}">{{ $fund->name }}</a></td>
-                        <td>
-                            @if ($fund->missingAnalytic())
-                                <span class="warning" style="display: inline-block; margin: 0; padding: 2px 8px;">{{ __('utilities.funds.missing_analytic') }}</span>
-                            @else
-                                {{ $fund->analytic }}
-                            @endif
-                        </td>
+                        <td class="col-no"><a href="/funds/{{ $fund->id }}">{{ $fund->number }}</a></td>
+                        <td>{{ $fund->name }}</td>
                         <td>
                             @foreach ($fund->properties as $line)
                                 № {{ $line->property?->number }}{{ $loop->last ? '' : ',' }}

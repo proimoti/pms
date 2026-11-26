@@ -4,7 +4,6 @@ namespace App\Services\Export;
 
 use App\Models\ExportBatch;
 use App\Models\ExportBatchEntry;
-use App\Models\Fund;
 use App\Models\LedgerEntry;
 use App\Models\PeriodLock;
 use App\Models\Scopes\CompanyScope;
@@ -21,7 +20,7 @@ use Illuminate\Validation\ValidationException;
  * В пакет влизат записите от книгата за издаден (заключен) месец, които още не
  * са в пакет. Книгата не се пипа: връзката е в export_batch_entries (уникален
  * ключ по записа). Корекциите след пакета влизат в следващия. Без попълнени
- * настройки и без аналитики на фондовете пакет не се прави.
+ * настройки пакет не се прави (фондът винаги има номер, 26.11.2026).
  */
 final class ExportBatches
 {
@@ -62,9 +61,6 @@ final class ExportBatches
     {
         $problems = array_map(fn ($key) => str_starts_with($key, 'kind_') ? __('utilities.kinds.'.substr($key, 5)) : __('export.settings.keys.'.$key),
             $this->settings->missing());
-        foreach (Fund::query()->where(fn ($q) => $q->whereNull('analytic')->orWhere('analytic', ''))->orderBy('name')->get() as $fund) {
-            $problems[] = __('export.batches.fund_without_analytic', ['name' => $fund->name]);
-        }
 
         return $problems;
     }

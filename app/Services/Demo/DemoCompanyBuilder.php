@@ -291,7 +291,7 @@ class DemoCompanyBuilder
         ]);
         // Общ фонд за вход с три имота (PROJECT.md, „Общ фонд“, 22–23.11.2026).
         $entrance = $this->funds->create([
-            'company_id' => $this->company->id, 'name' => 'Вход (измислен)', 'analytic' => 'ВХ-ДЕМО',
+            'company_id' => $this->company->id, 'name' => 'Вход (измислен)',
             'note' => 'Измислен вход за демонстрация.', 'properties' => [$p(1), $p(3), $p(4)],
         ]);
         // Фиксиран абонат (такса вход) към фонда: без номер, 15 € на месец, по дни като наема.

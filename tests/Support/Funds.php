@@ -22,7 +22,6 @@ trait Funds
 
         return app(FundService::class)->create(array_merge([
             'name' => "Измислен вход {$this->fundCounter}",
-            'analytic' => "ВХ-{$this->fundCounter}",
             'properties' => array_map(fn (Property $property) => $property->id, $properties),
         ], $overrides));
     }

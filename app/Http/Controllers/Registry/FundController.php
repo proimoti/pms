@@ -34,7 +34,10 @@ class FundController extends RegistryController
     /** По име, по аналитика или по номер на имот. */
     protected function applySearch(Builder $query, string $term, string $likeTerm): void
     {
-        $query->orWhere('name', 'like', $likeTerm)->orWhere('analytic', 'like', $likeTerm);
+        if (ctype_digit($term)) {
+            $query->orWhere('number', (int) $term);
+        }
+        $query->orWhere('name', 'like', $likeTerm);
 
         if (ctype_digit($term)) {
             $query->orWhereHas('properties.property', fn (Builder $property) => $property->where('number', (int) $term));
@@ -119,7 +122,7 @@ class FundController extends RegistryController
 
     private function input(Request $request): array
     {
-        return $request->only(['name', 'analytic', 'note']) + ['properties' => (array) $request->input('properties', [])];
+        return $request->only(['name', 'number', 'note']) + ['properties' => (array) $request->input('properties', [])];
     }
 
     /** Месец от адреса („12.2026“ или „2026-12“); празно или грешно = няма. */

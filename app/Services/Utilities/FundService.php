@@ -41,7 +41,9 @@ final class FundService
         $companyId = CompanyScope::restrictedCompanyId() ?? $fund->company_id ?? (isset($data['company_id']) ? (int) $data['company_id'] : null);
 
         $name = $this->text($data['name'] ?? null, 255);
-        $analytic = $this->text($data['analytic'] ?? null, 50);
+        // Номерът (аналитиката за Микроинвест, 26.11.2026): празно = следващият; само цифри от 1.
+        $numberText = trim((string) ($data['number'] ?? ''));
+        $number = null;
         $note = $this->text($data['note'] ?? null, null);
 
         if ($name === null) {
@@ -49,10 +51,17 @@ final class FundService
         } elseif ($this->taken($fund, $companyId, 'name', $name)) {
             $errors->add('name', __('utilities.errors.fund_name_taken'));
         }
-        if ($analytic === null) {
-            $errors->add('analytic', __('utilities.errors.analytic_required'));
-        } elseif ($this->taken($fund, $companyId, 'analytic', $analytic)) {
-            $errors->add('analytic', __('utilities.errors.analytic_taken'));
+        if ($numberText !== '') {
+            if (! ctype_digit($numberText) || (int) $numberText < 1) {
+                $errors->add('number', __('utilities.errors.fund_number_invalid'));
+            } else {
+                $number = (int) $numberText;
+                if ($fund->exists && $number !== (int) $fund->number && $fund->isNumberLocked()) {
+                    $errors->add('number', __('utilities.errors.fund_number_locked'));
+                } elseif ($this->taken($fund, $companyId, 'number', $number)) {
+                    $errors->add('number', __('registry.number_taken', ['number' => $number]));
+                }
+            }
         }
 
         $propertyIds = $this->properties($data['properties'] ?? [], $errors);
@@ -64,8 +73,11 @@ final class FundService
             throw ValidationException::withMessages($errors->toArray());
         }
 
-        return DB::transaction(function () use ($fund, $companyId, $name, $analytic, $note, $propertyIds) {
-            $fund->fill(['name' => $name, 'analytic' => $analytic, 'note' => $note]);
+        return DB::transaction(function () use ($fund, $companyId, $name, $number, $note, $propertyIds) {
+            $fund->fill(['name' => $name, 'note' => $note]);
+            if ($number !== null) {
+                $fund->number = $number;
+            }
             if (! $fund->exists && $companyId !== null) {
                 $fund->company_id = $companyId;
             }
@@ -129,7 +141,7 @@ final class FundService
         }
     }
 
-    private function taken(Fund $fund, ?int $companyId, string $field, string $value): bool
+    private function taken(Fund $fund, ?int $companyId, string $field, string|int $value): bool
     {
         return Fund::query()->withoutGlobalScopes()
             ->where('company_id', $companyId)->where($field, $value)

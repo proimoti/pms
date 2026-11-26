@@ -114,7 +114,7 @@ class UtilityScreensTest extends ScreenTestCase
     public function test_fixed_account_shows_its_amount(): void
     {
         $property = $this->property(['number' => 7]);
-        $fund = app(\App\Services\Utilities\FundService::class)->create(['company_id' => $this->company->id, 'name' => 'Вход (измислен)', 'analytic' => 'ВХ-1', 'properties' => [$property->id]]);
+        $fund = app(\App\Services\Utilities\FundService::class)->create(['company_id' => $this->company->id, 'name' => 'Вход (измислен)', 'properties' => [$property->id]]);
         $this->actingAs($this->staff());
 
         $this->post('/utility-accounts', [

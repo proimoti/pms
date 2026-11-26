@@ -31,7 +31,7 @@ trait HasCompanyNumber
             }
 
             if ($model->isNumberLocked()) {
-                throw ValidationException::withMessages(['number' => __('registry.number_locked')]);
+                throw ValidationException::withMessages(['number' => $model->numberLockedMessage()]);
             }
 
             $model->ensureNumberIsFree();
@@ -67,6 +67,12 @@ trait HasCompanyNumber
 
         return $column !== null && $this->exists && LedgerEntry::query()->withoutGlobalScopes()
             ->where('company_id', $this->company_id)->where($column, $this->getKey())->exists();
+    }
+
+    /** Съобщението при опит да се смени заключен номер. */
+    protected function numberLockedMessage(): string
+    {
+        return __('registry.number_locked');
     }
 
     protected function nextNumber(): int

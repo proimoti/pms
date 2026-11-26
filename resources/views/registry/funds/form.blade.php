@@ -19,8 +19,9 @@
                 <input id="name" type="text" name="name" required maxlength="255" value="{{ old('name', $fund->name) }}">
             </div>
             <div>
-                <label for="analytic">{{ __('utilities.funds.fields.analytic') }} *</label>
-                <input id="analytic" type="text" name="analytic" required maxlength="50" value="{{ old('analytic', $fund->analytic) }}">
+                <label for="number">{{ __('utilities.funds.fields.number') }}</label>
+                <input id="number" type="text" inputmode="numeric" name="number" value="{{ old('number', $fund->number) }}" maxlength="9">
+                @unless ($fund->exists)<div class="muted">{{ __('registry.number_hint') }}</div>@endunless
             </div>
         </div>
 

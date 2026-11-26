@@ -58,7 +58,6 @@ class FundMigrationTest extends ContractTestCase
         $first = Fund::query()->findOrFail(UtilityAccount::query()->findOrFail($entrance)->fund_id);
         $this->assertSame('Фонд: Такса вход', $first->name);
         $this->assertNull($first->analytic);
-        $this->assertTrue($first->missingAnalytic());
         $this->assertEqualsCanonicalizing([$a->id, $b->id], $first->propertyIds());
 
         $second = Fund::query()->findOrFail(UtilityAccount::query()->findOrFail($sameNote)->fund_id);

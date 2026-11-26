@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  *   сметката от настройките); приход: 408/… → приход по тип договор = наемът
  *   минус дължимото към собственика (свободен имот при фиксиран — с минус);
  * - битова сметка към наемател: 418/… → 407/вид/имот (общ абонат: 407/абонатен номер);
- * - фиксирана такса: 418/… → фонд/аналитиката на фонда;
+ * - фиксирана такса: 418/… → фонд/номера на фонда;
  * - депозит 418 → 491/договор/имот; неустойка и „Друго“ → сметките от настройките;
  * - платена сметка (по настройка): 407/… → банка (ePay/EasyPay); платена от фонда: фонд → банка;
  * - за сметка на управителя: разход → 407/….
@@ -52,7 +52,7 @@ final class MicroinvestRows
         $leases = $lookup('lease_contracts', $entries->pluck('lease_contract_id'));
         $properties = DB::table('properties')->where('company_id', $companyId)->pluck('number', 'id');
         $statements = $lookup('statements', $entries->pluck('statement_id'));
-        $funds = DB::table('funds')->where('company_id', $companyId)->pluck('analytic', 'id');
+        $funds = DB::table('funds')->where('company_id', $companyId)->pluck('number', 'id');
         $bills = DB::table('paid_utility_bills')->where('company_id', $companyId)->whereIn('id', $entries->pluck('paid_utility_bill_id')->filter()->unique())
             ->get(['id', 'utility_account_id', 'source', 'reference'])->keyBy('id');
         $accounts = DB::table('utility_accounts')->where('company_id', $companyId)->get(['id', 'number', 'kind', 'fund_id'])->keyBy('id');
@@ -74,7 +74,8 @@ final class MicroinvestRows
                 ? $s->get('utility').'/'.$account->number
                 : $s->get('utility').'/'.($s->kindCode($account->kind) ?? '?').'/'.($properties[$propertyId] ?? '?');
         };
-        $fund = fn ($fundId) => $s->get('fund').'/'.(trim((string) ($funds[$fundId] ?? '')) ?: '?');
+        // Фонд: сметката от настройките/номерът на фонда (уточнено 26.11.2026).
+        $fund = fn ($fundId) => $s->get('fund').'/'.($funds[$fundId] ?? '?');
         $document = fn ($e) => $e->statement_id ? (string) ($statements[$e->statement_id] ?? '') : (string) $e->id;
 
         // Договорът за управление на имот за месеца: по записите по 408 за месеца, иначе действащият по редовете.

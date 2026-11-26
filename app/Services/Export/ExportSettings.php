@@ -50,13 +50,11 @@ final class ExportSettings
         ];
     }
 
-    /** @var ?array<string, ?string> */
-    private ?array $values = null;
-
     /** @return array<string, ?string> */
     public function all(): array
     {
-        return $this->values ??= ExportRule::query()->pluck('value', 'key')->all();
+        // Всеки път от базата: услугата може да живее по-дълго от една заявка.
+        return ExportRule::query()->pluck('value', 'key')->all();
     }
 
     public function get(string $key): ?string
@@ -91,7 +89,6 @@ final class ExportSettings
             }
             $rule->save();
         }
-        $this->values = null;
     }
 
     /**

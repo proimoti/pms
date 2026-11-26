@@ -212,7 +212,7 @@ class DemoDataTest extends TestCase
 
         // Общ фонд за вход с няколко имота; фиксираният абонат е към него, общият ток се плаща от него.
         $fund = \App\Models\Fund::query()->withoutGlobalScopes()->where('company_id', $company->id)->where('name', 'Вход (измислен)')->sole();
-        $this->assertNotNull($fund->analytic);
+        $this->assertSame(1, $fund->number);
         $this->assertGreaterThan(1, count($fund->propertyIds()));
         $this->assertTrue($accounts->filter(fn ($a) => $a->isFixed())->every(fn ($a) => $a->fund_id === $fund->id));
         $light = $accounts->first(fn ($a) => $a->paid_from_fund);

@@ -50,6 +50,25 @@ class NumberAndKindMigrationTest extends TestCase
         $this->assertEquals($numbers, DB::table('beneficiaries')->pluck('number', 'id'));
     }
 
+    public function test_old_funds_get_numbers_by_creation_order_per_company(): void
+    {
+        [$a, $b] = [Company::factory()->create()->id, Company::factory()->create()->id];
+        $fund = fn (int $company, string $name, string $at) => DB::table('funds')->insertGetId(['company_id' => $company, 'name' => $name,
+            'analytic' => 'СТАРА-'.$name, 'created_at' => $at, 'updated_at' => $at]);
+        $second = $fund($a, 'Вход Б', '2026-11-23 11:00:00');
+        $first = $fund($a, 'Вход А', '2026-11-23 10:00:00');
+        $other = $fund($b, 'Вход В', '2026-11-24 10:00:00');
+
+        $this->migration('2026_11_26_000004_add_number_to_funds')->backfill();
+
+        $numbers = DB::table('funds')->pluck('number', 'id');
+        $this->assertSame([1, 2, 1], [(int) $numbers[$first], (int) $numbers[$second], (int) $numbers[$other]]);
+        // Старата аналитика остава в базата и се записва в журнала.
+        $this->assertSame('СТАРА-Вход А', DB::table('funds')->where('id', $first)->value('analytic'));
+        $entry = DB::table('audit_log')->where('auditable_type', 'funds')->where('auditable_id', $first)->sole();
+        $this->assertSame(['number' => ['old' => null, 'new' => 1], 'analytic' => ['old' => 'СТАРА-Вход А', 'new' => 'СТАРА-Вход А']], json_decode($entry->changes, true));
+    }
+
     public function test_provider_gets_the_kind_only_when_all_its_accounts_have_one_kind(): void
     {
         $company = Company::factory()->create()->id;

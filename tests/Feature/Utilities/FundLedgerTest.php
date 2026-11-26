@@ -62,7 +62,7 @@ class FundLedgerTest extends ContractTestCase
         $this->ledger = app(FundLedger::class);
         $this->power = Provider::query()->create(['name' => 'Измислено Електро', 'easypay_name' => 'IZM EL', 'epay_name' => 'Измислено Електро АД']);
         [$this->a, $this->b, $this->c] = [$this->property(), $this->property(), $this->property()];
-        $this->entrance = $this->fund([$this->a, $this->b, $this->c], ['name' => 'Вход (измислен)', 'analytic' => 'ВХ-1']);
+        $this->entrance = $this->fund([$this->a, $this->b, $this->c], ['name' => 'Вход (измислен)']);
 
         $accounts = app(UtilityAccountService::class);
         // Такса вход 15 € към фонда.

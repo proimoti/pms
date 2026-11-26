@@ -43,7 +43,7 @@
                 <select id="fund_id" name="fund_id">
                     <option value=""></option>
                     @foreach ($funds as $fund)
-                        <option value="{{ $fund->id }}" @selected((string) old('fund_id', $account->fund_id) === (string) $fund->id)>{{ $fund->name }}@if ($fund->analytic) ({{ $fund->analytic }})@endif</option>
+                        <option value="{{ $fund->id }}" @selected((string) old('fund_id', $account->fund_id) === (string) $fund->id)>{{ $fund->name }} (№ {{ $fund->number }})</option>
                     @endforeach
                 </select>
             </div>

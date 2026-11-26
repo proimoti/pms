@@ -25,7 +25,7 @@ class FundScreensTest extends ScreenTestCase
     private function fund(array $properties, array $overrides = [], $company = null): Fund
     {
         return app(FundService::class)->create(array_merge([
-            'company_id' => ($company ?? $this->company)->id, 'name' => 'Вход (измислен)', 'analytic' => 'ВХ-1',
+            'company_id' => ($company ?? $this->company)->id, 'name' => 'Вход (измислен)',
             'properties' => array_map(fn ($p) => $p->id, $properties),
         ], $overrides));
     }
@@ -35,15 +35,15 @@ class FundScreensTest extends ScreenTestCase
         [$a, $b] = [$this->property(), $this->property()];
         $this->actingAs($this->staff());
 
-        $this->post('/funds', ['name' => 'Вход А', 'analytic' => 'ВХ-А', 'properties' => [$a->id, $b->id]])->assertSessionHasNoErrors();
+        $this->post('/funds', ['name' => 'Вход А', 'properties' => [$a->id, $b->id]])->assertSessionHasNoErrors();
         $fund = Fund::query()->sole();
         $this->assertEqualsCanonicalizing([$a->id, $b->id], $fund->propertyIds());
 
-        $this->get('/funds')->assertOk()->assertSee('Вход А')->assertSee('ВХ-А');
+        $this->get('/funds')->assertOk()->assertSee('Вход А')->assertSee('<td class="col-no"><a href="/funds/'.$fund->id.'">1</a></td>', false);
         $this->get("/funds/{$fund->id}")->assertOk()->assertSee('Вход А')->assertSee('№ '.$a->number);
         $this->get("/funds/{$fund->id}/edit")->assertOk();
 
-        $this->put("/funds/{$fund->id}", ['name' => 'Вход Б', 'analytic' => 'ВХ-Б', 'properties' => [$a->id]])->assertRedirect("/funds/{$fund->id}");
+        $this->put("/funds/{$fund->id}", ['name' => 'Вход Б', 'number' => '1', 'properties' => [$a->id]])->assertRedirect("/funds/{$fund->id}");
         $this->assertSame('Вход Б', $fund->fresh()->name);
 
         $this->post("/funds/{$fund->id}/archive");
@@ -54,7 +54,7 @@ class FundScreensTest extends ScreenTestCase
     {
         $this->actingAs($this->staff());
 
-        $this->post('/funds', [])->assertSessionHasErrors(['name', 'analytic', 'properties']);
+        $this->post('/funds', [])->assertSessionHasErrors(['name', 'properties']);
         $this->assertSame(0, Fund::query()->count());
     }
 
@@ -72,14 +72,15 @@ class FundScreensTest extends ScreenTestCase
         $this->assertFalse($fund->fresh()->isArchived());
     }
 
-    public function test_missing_analytic_is_warned_about(): void
+    public function test_number_is_shown_and_can_be_changed_in_the_form(): void
     {
         $fund = $this->fund([$this->property()]);
-        DB::table('funds')->where('id', $fund->id)->update(['analytic' => null]); // като фонд от миграцията
         $this->actingAs($this->staff());
 
-        $this->get('/funds')->assertSee(__('utilities.funds.missing_analytic'));
-        $this->get("/funds/{$fund->id}")->assertSee(__('utilities.funds.missing_analytic'));
+        $this->get('/funds')->assertSee(__('utilities.funds.columns.number'))->assertDontSee('Липсва аналитика');
+        $this->get("/funds/{$fund->id}")->assertSee(__('utilities.funds.fields.number'))->assertSee('406', false)->assertDontSee('Липсва аналитика');
+        $this->get("/funds/{$fund->id}/edit")->assertSee('name="number" value="1"', false);
+        $this->get('/funds/create')->assertSee('name="number"', false)->assertSee(__('registry.number_hint'));
     }
 
     public function test_fund_page_shows_collected_paid_and_left(): void
@@ -110,14 +111,14 @@ class FundScreensTest extends ScreenTestCase
 
         $this->get('/funds')->assertOk()->assertSee('Вход (измислен)');
         $this->get('/funds/create')->assertForbidden();
-        $this->post('/funds', ['name' => 'Х', 'analytic' => 'Х', 'properties' => []])->assertForbidden();
+        $this->post('/funds', ['name' => 'Х', 'properties' => []])->assertForbidden();
     }
 
     public function test_assigned_only_staff_sees_only_funds_of_their_properties(): void
     {
         [$mine, $other] = [$this->property(), $this->property()];
-        $visible = $this->fund([$mine], ['name' => 'Видим вход', 'analytic' => 'В-1']);
-        $hidden = $this->fund([$other], ['name' => 'Скрит вход', 'analytic' => 'С-1']);
+        $visible = $this->fund([$mine], ['name' => 'Видим вход']);
+        $hidden = $this->fund([$other], ['name' => 'Скрит вход']);
         $staff = $this->assignedOnlyStaff();
         (new UserProperty)->forceFill(['company_id' => $this->company->id, 'user_id' => $staff->id, 'property_id' => $mine->id])->save();
         $this->actingAs($staff);
@@ -129,7 +130,7 @@ class FundScreensTest extends ScreenTestCase
 
     public function test_company_a_does_not_see_funds_of_company_b(): void
     {
-        $foreign = $this->fund([$this->property([], $this->otherCompany)], ['name' => 'Чужд вход', 'analytic' => 'Ч-1'], $this->otherCompany);
+        $foreign = $this->fund([$this->property([], $this->otherCompany)], ['name' => 'Чужд вход'], $this->otherCompany);
         $this->actingAs($this->staff());
 
         $this->get('/funds')->assertDontSee('Чужд вход');

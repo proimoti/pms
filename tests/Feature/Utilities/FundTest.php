@@ -79,17 +79,64 @@ class FundTest extends ContractTestCase
 
     // Регистърът
 
-    public function test_fund_has_a_name_an_analytic_and_its_properties(): void
+    public function test_fund_has_a_name_a_number_and_its_properties(): void
     {
         [$a, $b, $c] = [$this->property(), $this->property(), $this->property()];
 
-        $fund = $this->funds->create(['name' => 'Вход А (измислен)', 'analytic' => 'ВХ-А', 'note' => 'Общите разходи на вход А', 'properties' => [$a->id, $b->id, $c->id]]);
+        $fund = $this->funds->create(['name' => 'Вход А (измислен)', 'note' => 'Общите разходи на вход А', 'properties' => [$a->id, $b->id, $c->id]]);
 
         $this->assertSame('Вход А (измислен)', $fund->name);
-        $this->assertSame('ВХ-А', $fund->analytic);
+        $this->assertSame(1, $fund->number);
         $this->assertSame($this->staff->company_id, $fund->company_id);
         $this->assertEqualsCanonicalizing([$a->id, $b->id, $c->id], $fund->propertyIds());
-        $this->assertFalse($fund->missingAnalytic());
+    }
+
+    // Номерът е аналитиката за Микроинвест (уточнено 26.11.2026).
+
+    public function test_next_number_is_the_highest_plus_one_and_is_never_reused(): void
+    {
+        $first = $this->fund([$this->property()]);
+        $second = $this->fund([$this->property()]);
+        $this->assertSame([1, 2], [$first->number, $second->number]);
+
+        // Архивираният фонд пази номера си: следващият е 3, не 2.
+        $second->archive();
+        $this->assertSame(3, $this->fund([$this->property()])->number);
+
+        // Отделно за всяка фирма.
+        $this->assertSame(1, $this->inOtherCompany(fn () => $this->fund([$this->property()]))->number);
+    }
+
+    public function test_number_can_be_set_by_hand_only_digits_and_unique(): void
+    {
+        $fund = $this->funds->create(['name' => 'Вход Р', 'number' => '7', 'properties' => [$this->property()->id]]);
+        $this->assertSame(7, $fund->number);
+        $this->assertSame(8, $this->fund([$this->property()])->number);
+
+        foreach (['1/2', 'А1', '0', '-3'] as $wrong) {
+            $this->assertArrayHasKey('number', $this->errorsOf(fn () => $this->funds->update($fund, ['name' => $fund->name, 'number' => $wrong, 'properties' => $fund->propertyIds()])), $wrong);
+        }
+        $this->assertArrayHasKey('number', $this->errorsOf(fn () => $this->funds->update($fund, ['name' => $fund->name, 'number' => '8', 'properties' => $fund->propertyIds()])));
+
+        $this->funds->update($fund, ['name' => $fund->name, 'number' => '12', 'properties' => $fund->propertyIds()]);
+        $this->assertSame(12, $fund->fresh()->number);
+    }
+
+    public function test_number_is_locked_once_the_fund_is_in_an_export_batch(): void
+    {
+        $fund = $this->fund([$this->property()]);
+        $entry = \App\Services\Charges\Ledger::book(\Carbon\CarbonImmutable::parse('2026-12-01'), \App\Enums\LedgerKind::FundIncome,
+            ['account' => \App\Enums\LedgerAccount::Utility, 'type' => \App\Enums\ChargeType::FixedFee, 'fund_id' => $fund->id], -1500);
+        $batch = new \App\Models\ExportBatch;
+        $batch->forceFill(['number' => 1, 'month' => '2026-12-01', 'entries_count' => 1, 'created_at' => now()])->save();
+        (new \App\Models\ExportBatchEntry)->forceFill(['export_batch_id' => $batch->id, 'ledger_entry_id' => $entry->id])->save();
+
+        $errors = $this->errorsOf(fn () => $this->funds->update($fund, ['name' => $fund->name, 'number' => '5', 'properties' => $fund->propertyIds()]));
+        $this->assertArrayHasKey('number', $errors);
+        $this->assertSame(1, $fund->fresh()->number);
+        // Името може да се сменя и след това.
+        $this->funds->update($fund, ['name' => 'Ново име', 'number' => '1', 'properties' => $fund->propertyIds()]);
+        $this->assertSame('Ново име', $fund->fresh()->name);
     }
 
     public function test_fund_may_be_for_a_single_property(): void
@@ -99,23 +146,23 @@ class FundTest extends ContractTestCase
         $this->assertSame([$property->id], $this->fund([$property])->propertyIds());
     }
 
-    public function test_name_analytic_and_a_property_are_required_and_errors_come_together(): void
+    public function test_name_and_a_property_are_required_and_errors_come_together(): void
     {
-        $errors = $this->errorsOf(fn () => $this->funds->create(['name' => ' ', 'analytic' => '', 'properties' => []]));
+        $errors = $this->errorsOf(fn () => $this->funds->create(['name' => ' ', 'properties' => []]));
 
-        $this->assertEqualsCanonicalizing(['name', 'analytic', 'properties'], array_keys($errors));
+        $this->assertEqualsCanonicalizing(['name', 'properties'], array_keys($errors));
         $this->assertSame(0, Fund::query()->count());
     }
 
-    public function test_name_and_analytic_are_unique_in_the_company(): void
+    public function test_name_is_unique_in_the_company(): void
     {
-        $this->fund([$this->property()], ['name' => 'Вход Б', 'analytic' => 'ВХ-Б']);
+        $this->fund([$this->property()], ['name' => 'Вход Б']);
 
-        $errors = $this->errorsOf(fn () => $this->fund([$this->property()], ['name' => 'Вход Б', 'analytic' => 'ВХ-Б']));
-        $this->assertEqualsCanonicalizing(['name', 'analytic'], array_keys($errors));
+        $errors = $this->errorsOf(fn () => $this->fund([$this->property()], ['name' => 'Вход Б']));
+        $this->assertEqualsCanonicalizing(['name'], array_keys($errors));
 
-        // Друга фирма може да ползва същите.
-        $other = $this->inOtherCompany(fn () => $this->fund([$this->property()], ['name' => 'Вход Б', 'analytic' => 'ВХ-Б']));
+        // Друга фирма може да ползва същото име.
+        $other = $this->inOtherCompany(fn () => $this->fund([$this->property()], ['name' => 'Вход Б']));
         $this->assertNotNull($other->id);
     }
 
@@ -134,7 +181,7 @@ class FundTest extends ContractTestCase
         [$a, $b] = [$this->property(), $this->property()];
         $fund = $this->fund([$a]);
 
-        $this->funds->update($fund, ['name' => 'Вход В', 'analytic' => 'ВХ-В', 'properties' => [$a->id, $b->id]]);
+        $this->funds->update($fund, ['name' => 'Вход В', 'properties' => [$a->id, $b->id]]);
 
         $this->assertSame('Вход В', $fund->fresh()->name);
         $this->assertEqualsCanonicalizing([$a->id, $b->id], $fund->fresh()->propertyIds());
@@ -175,7 +222,7 @@ class FundTest extends ContractTestCase
         $fund = $this->fund([$a, $b]);
         $this->accounts->create($this->fixedData($fund, [$b]));
 
-        $errors = $this->errorsOf(fn () => $this->funds->update($fund, ['name' => $fund->name, 'analytic' => $fund->analytic, 'properties' => [$a->id]]));
+        $errors = $this->errorsOf(fn () => $this->funds->update($fund, ['name' => $fund->name, 'properties' => [$a->id]]));
 
         $this->assertArrayHasKey('properties', $errors);
         $this->assertEqualsCanonicalizing([$a->id, $b->id], $fund->fresh()->propertyIds());
@@ -185,7 +232,7 @@ class FundTest extends ContractTestCase
     {
         [$a, $b] = [$this->property(), $this->property()];
         $fund = $this->fund([$a]);
-        $this->funds->update($fund, ['name' => 'Вход Г', 'analytic' => 'ВХ-Г', 'properties' => [$b->id]]);
+        $this->funds->update($fund, ['name' => 'Вход Г', 'properties' => [$b->id]]);
         $fund->archive();
 
         foreach (['created', 'updated', 'archived'] as $event) {

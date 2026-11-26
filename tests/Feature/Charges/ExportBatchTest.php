@@ -140,18 +140,17 @@ class ExportBatchTest extends ScreenTestCase
         $this->assertSame(0, ExportBatch::query()->count());
     }
 
-    public function test_missing_settings_or_fund_analytics_stop_the_batch(): void
+    public function test_missing_settings_stop_the_batch(): void
     {
         $this->fillSettings(['revenue_own' => '']);
         $this->post('/export/batches', ['month' => '2026-12'])->assertSessionHasErrors('month');
         $this->get('/export')->assertSee(__('export.settings.keys.revenue_own'))->assertSee('href="/company/export"', false);
 
-        $this->fillSettings();
-        DB::table('funds')->update(['analytic' => null]);
-        $this->post('/export/batches', ['month' => '2026-12'])->assertSessionHasErrors('month');
-        $this->get('/export')->assertSee(__('export.batches.fund_without_analytic', ['name' => 'Вход (измислен)']));
-
         $this->assertSame(0, ExportBatch::query()->count());
+
+        // Фондът винаги има номер (аналитика), затова предупреждение за фонд няма (уточнено 26.11.2026).
+        $this->fillSettings();
+        $this->post('/export/batches', ['month' => '2026-12'])->assertSessionHasNoErrors();
     }
 
     public function test_only_the_charges_manager(): void

@@ -103,7 +103,7 @@ class UtilityWorksheetScreensTest extends ScreenTestCase
             'kind' => 'common', 'billing' => 'fixed', 'fixed_amount' => '15', 'valid_from' => '2026-01-01',
             'note' => 'Такса вход (измислена)', 'properties' => [['property_id' => $this->flat->id]],
             'fund_id' => app(\App\Services\Utilities\FundService::class)->create([
-                'company_id' => $this->company->id, 'name' => 'Вход (измислен)', 'analytic' => 'ВХ-1', 'properties' => [$this->flat->id],
+                'company_id' => $this->company->id, 'name' => 'Вход (измислен)', 'properties' => [$this->flat->id],
             ])->id,
         ]);
         $this->lease('Анна Измислена', '2026-01-10');

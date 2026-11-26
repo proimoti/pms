@@ -90,7 +90,7 @@ trait DossierScenario
             'provider_id' => $power->id, 'number' => '0012345', 'kind' => 'electricity', 'billing' => 'actual',
             'valid_from' => '2026-12-01', 'properties' => [['property_id' => $this->flat->id]],
         ]);
-        $fund = app(FundService::class)->create(['name' => 'Вход (измислен)', 'analytic' => 'ВХ-1', 'properties' => [$this->flat->id]]);
+        $fund = app(FundService::class)->create(['name' => 'Вход (измислен)', 'properties' => [$this->flat->id]]);
         $accounts->create([
             'kind' => 'common', 'billing' => 'fixed', 'fixed_amount' => '15', 'valid_from' => '2026-12-01', 'note' => 'Такса вход',
             'fund_id' => $fund->id, 'properties' => [['property_id' => $this->flat->id]],

@@ -9,12 +9,8 @@
 @section('content')
     <h1>{{ __('registry.one.funds') }} {{ $fund->name }}</h1>
 
-    @if ($fund->missingAnalytic())
-        <div class="warning">{{ __('utilities.funds.missing_analytic') }}</div>
-    @endif
-
     <dl>
-        <dt>{{ __('utilities.funds.fields.analytic') }}</dt><dd>{{ $fund->analytic ?? __('registry.none') }}</dd>
+        <dt>{{ __('utilities.funds.fields.number') }}</dt><dd>{{ $fund->number }} <div class="muted">{{ __('utilities.funds.number_hint', ['number' => $fund->number]) }}</div></dd>
         <dt>{{ __('utilities.funds.fields.properties') }}</dt>
         <dd>
             @foreach ($fund->properties as $line)
