@@ -108,6 +108,7 @@ class LeaseContractController extends RegistryController
             'payments' => \App\Models\Payment::query()->with(['bankAccount', 'createdBy', 'reversal'])->where('lease_contract_id', $contract->id)
                 ->whereNull('reversal_of_id')->orderByDesc('paid_on')->orderByDesc('id')->get(),
             'canPay' => \App\Models\Concerns\WorksheetRules::canManage(auth()->user()),
+            'paid' => app(\App\Services\Payments\Allocation::class)->byStatement((int) $contract->company_id, \App\Models\Statement::query()->where('lease_contract_id', $contract->id)->get()),
             'canIssue' => WorksheetRules::canManage(auth()->user()) && ! $contract->isArchived(),
         ]);
     }

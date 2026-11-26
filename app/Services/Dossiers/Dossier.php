@@ -158,9 +158,9 @@ final class Dossier
     /**
      * Депозитите по договорите на наемателя (т. 2.6, 24.11.2026): договореният
      * (сборът по сегашните и предстоящите имоти на договора) и начисленият (491).
-     * Внесеният идва с плащанията.
+     * Внесеният е по разнасянето на плащанията.
      *
-     * @return array<int, array{contracted: string, charged: string}>
+     * @return array<int, array{contracted: string, charged: string, paid: string}>
      */
     public function tenantDeposits(Collection $leases): array
     {
@@ -173,6 +173,8 @@ final class Dossier
             $result[$lease->id] = [
                 'contracted' => Cents::format($latest->sum(fn ($line) => Cents::from((string) ($line->deposit ?? '0')))),
                 'charged' => Cents::format(Cents::from((string) ($charged[$lease->id] ?? '0'))),
+                // Внесеният: покритото от плащанията по разнасянето (26.11.2026).
+                'paid' => Cents::format(app(\App\Services\Payments\Allocation::class)->depositPaid((int) $lease->company_id, (int) $lease->id)),
             ];
         }
 

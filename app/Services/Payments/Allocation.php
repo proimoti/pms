@@ -79,6 +79,37 @@ final class Allocation
     }
 
     /**
+     * Платеното по известие (за договорите на известията): известие => [сума, платено] в центове.
+     * Корекциите без известие не са в нито едно известие.
+     *
+     * @param  iterable<\App\Models\Statement>  $statements
+     * @return array<int, array{amount: int, paid: int}>
+     */
+    public function byStatement(int $companyId, iterable $statements): array
+    {
+        $result = [];
+        foreach (collect($statements)->pluck('lease_contract_id')->unique() as $leaseId) {
+            foreach ($this->forLease($companyId, (int) $leaseId)['debts'] as $debt) {
+                if ($debt['statement_id'] === null) {
+                    continue;
+                }
+                $result[$debt['statement_id']] ??= ['amount' => 0, 'paid' => 0];
+                $result[$debt['statement_id']]['amount'] += $debt['amount'];
+                $result[$debt['statement_id']]['paid'] += $debt['paid'];
+            }
+        }
+
+        return $result;
+    }
+
+    /** Внесеният депозит по договора: покритото от разнасянето по редовете „депозит“, в центове. */
+    public function depositPaid(int $companyId, int $leaseId): int
+    {
+        return array_sum(array_map(fn ($debt) => $debt['type'] === ChargeType::Deposit->value ? $debt['paid'] : 0,
+            $this->forLease($companyId, $leaseId)['debts']));
+    }
+
+    /**
      * Как се разделя ново плащане по имотите: по неплатените дългове в реда на
      * разнасянето; остатъкът (надплатено) — към първия имот на договора.
      *

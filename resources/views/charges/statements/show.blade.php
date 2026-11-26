@@ -25,6 +25,7 @@
         </div>
     </div>
     <p class="muted">{{ __('charges.statements.not_invoice') }}</p>
+    <p>{{ __('payments.column') }}: @include('payments.status', ['info' => $paid])</p>
     @if (($statement->snapshot['bank'] ?? null) === null)
         <div class="warning">{{ __('statements.pdf.no_bank_warning') }}</div>
     @endif

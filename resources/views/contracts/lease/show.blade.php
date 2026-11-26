@@ -144,7 +144,7 @@
     @else
         <ul>
             @foreach ($statements as $statement)
-                <li><a href="/statements/{{ $statement->id }}">№ {{ $statement->number }}</a> · {{ \App\Services\Charges\Month::label($statement->month) }} · {{ Format::money($statement->total) }} €</li>
+                <li><a href="/statements/{{ $statement->id }}">№ {{ $statement->number }}</a> · {{ \App\Services\Charges\Month::label($statement->month) }} · {{ Format::money($statement->total) }} € · @include('payments.status', ['info' => $paid[$statement->id] ?? null])</li>
             @endforeach
         </ul>
     @endif

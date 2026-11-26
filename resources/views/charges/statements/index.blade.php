@@ -62,6 +62,7 @@
                     <th>{{ __('charges.fields.tenant') }}</th>
                     <th class="num">{{ __('charges.statements.total') }}</th>
                     <th>{{ __('charges.statements.issued_at') }}</th>
+                    <th>{{ __('payments.column') }}</th>
                     <th>{{ __('statements.send.column') }}</th>
                 </tr>
                 </thead>
@@ -74,6 +75,7 @@
                         <td>{{ $statement->tenant?->name }}</td>
                         <td class="num">{{ Format::money($statement->total) }}</td>
                         <td>{{ $statement->issued_at->format('d.m.Y') }}</td>
+                        <td class="nowrap paid-status">@include('payments.status', ['info' => $paid[$statement->id] ?? null])</td>
                         <td class="nowrap">@include('charges.statements.send-status', ['log' => $lastSend[$statement->id] ?? null])</td>
                     </tr>
                 @endforeach

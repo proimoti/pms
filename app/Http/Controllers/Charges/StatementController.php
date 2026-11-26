@@ -49,6 +49,8 @@ class StatementController extends Controller
             // Последното изпращане на всяко известие (24.11.2026).
             'lastSend' => EmailLog::query()->whereIn('statement_id', $statements->pluck('id'))->orderBy('id')->get()->keyBy('statement_id'),
             'canManage' => \App\Models\Concerns\WorksheetRules::canManage($request->user()),
+            // Платено по известие (разнасянето, 26.11.2026).
+            'paid' => app(\App\Services\Payments\Allocation::class)->byStatement((int) \App\Models\Scopes\CompanyScope::restrictedCompanyId(), $statements),
         ]);
     }
 
@@ -58,6 +60,7 @@ class StatementController extends Controller
             'statement' => $statement->load(['leaseContract', 'tenant', 'issuedBy', 'lines.property', 'lines.paidUtilityBill', 'lines.utilityAccount.provider']),
             'sends' => EmailLog::query()->with('user')->where('statement_id', $statement->id)->orderBy('id')->get(),
             'alreadySent' => app(StatementSender::class)->wasSent($statement),
+            'paid' => app(\App\Services\Payments\Allocation::class)->byStatement((int) $statement->company_id, [$statement])[$statement->id] ?? null,
             'canManage' => \App\Models\Concerns\WorksheetRules::canManage($request->user()),
         ]);
     }

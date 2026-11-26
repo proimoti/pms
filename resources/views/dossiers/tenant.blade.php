@@ -1,4 +1,4 @@
-{{-- Досието на наемателя: договори, „Дължи“ по 418 (общо и по договор) и вдясно „Депозити“ (т. 2.6, 24.11.2026). --}}
+{{-- Досието на наемателя: договори, „Дължи“ по 418 (общо и по договор) и вдясно „Депозити“ (т. 2.6, 24.11.2026; „Внесен“ по разнасянето, 26.11.2026). --}}
 @use('App\Support\Format')
 
 <h2>{{ __('dossiers.sections.leases') }}</h2>
@@ -34,7 +34,7 @@
                         <td><a href="/lease-contracts/{{ $lease->id }}">№ {{ $lease->number }}</a></td>
                         <td class="num">{{ Format::money($deposits[$lease->id]['contracted'] ?? '0.00') }}</td>
                         <td class="num">{{ Format::money($deposits[$lease->id]['charged'] ?? '0.00') }}</td>
-                        <td class="num">{{ __('registry.none') }}</td>
+                        <td class="num paid">{{ Format::money($deposits[$lease->id]['paid'] ?? '0.00') }}</td>
                     </tr>
                 @endforeach
                 </tbody>
