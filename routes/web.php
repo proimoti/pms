@@ -41,7 +41,9 @@ Route::middleware('auth')->group(function () {
         // „Фирма“ (24.11.2026): само администраторът на фирмата (проверката е в контролера и в моделите).
         Route::get('company', [\App\Http\Controllers\CompanyController::class, 'show'])->name('company.show');
         Route::get('company/edit', [\App\Http\Controllers\CompanyController::class, 'edit'])->name('company.edit');
-        Route::get('company/logo', [\App\Http\Controllers\CompanyController::class, 'logo'])->name('company.logo');
+        Route::get('company/export', [\App\Http\Controllers\CompanyController::class, 'exportSettings'])->name('company.export');
+        Route::put('company/export', [\App\Http\Controllers\CompanyController::class, 'updateExportSettings'])->name('company.export.update');
+        Route::get('company/logo',[\App\Http\Controllers\CompanyController::class, 'logo'])->name('company.logo');
         Route::post('company/logo', [\App\Http\Controllers\CompanyController::class, 'uploadLogo'])->name('company.logo.upload');
         Route::post('company/logo/remove', [\App\Http\Controllers\CompanyController::class, 'removeLogo'])->name('company.logo.remove');
         Route::put('company', [\App\Http\Controllers\CompanyController::class, 'update'])->name('company.update');

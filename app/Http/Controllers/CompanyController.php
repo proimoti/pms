@@ -172,6 +172,34 @@ class CompanyController extends Controller
         ]);
     }
 
+    /** „Настройки за експорта“ (PROJECT.md, „Експорт към Микроинвест“, 26.11.2026). */
+    public function exportSettings(Request $request, \App\Services\Export\ExportSettings $settings): View
+    {
+        $this->company($request);
+
+        return view('company.export', ['values' => $settings->all(), 'missing' => $settings->missing()]);
+    }
+
+    public function updateExportSettings(Request $request, \App\Services\Export\ExportSettings $settings): RedirectResponse
+    {
+        $this->company($request);
+        $patterns = \App\Services\Export\ExportSettings::patterns();
+        $rules = [];
+        foreach (\App\Services\Export\ExportSettings::keys() as $key => $type) {
+            $rules[$key] = ['nullable', 'string', 'max:50', 'regex:'.$patterns[$type]];
+        }
+        $messages = [];
+        foreach (\App\Services\Export\ExportSettings::keys() as $key => $type) {
+            $messages[$key.'.regex'] = __('export.settings.hints.'.($type === 'code' ? 'code' : ($type === 'synthetic' ? 'synthetic' : 'account')));
+        }
+        $data = $request->validate($rules, $messages);
+        $data['include_paid_bills'] = $request->boolean('include_paid_bills') ? '1' : '0';
+
+        DB::transaction(fn () => $settings->save($data));
+
+        return redirect('/company/export')->with('status', __('export.settings.saved'));
+    }
+
     /** Само една сметка е „за известията“. */
     private function makeForStatements(Company $company, BankAccount $account): void
     {
