@@ -43,6 +43,10 @@ Route::middleware('auth')->group(function () {
         Route::get('company/edit', [\App\Http\Controllers\CompanyController::class, 'edit'])->name('company.edit');
         Route::get('company/export', [\App\Http\Controllers\CompanyController::class, 'exportSettings'])->name('company.export');
         Route::put('company/export', [\App\Http\Controllers\CompanyController::class, 'updateExportSettings'])->name('company.export.update');
+        Route::get('company/opening', [\App\Http\Controllers\CompanyOpeningController::class, 'show'])->name('company.opening');
+        Route::post('company/opening/preview', [\App\Http\Controllers\CompanyOpeningController::class, 'preview'])->name('company.opening.preview');
+        Route::post('company/opening/confirm', [\App\Http\Controllers\CompanyOpeningController::class, 'confirm'])->name('company.opening.confirm');
+        Route::post('company/opening/reverse', [\App\Http\Controllers\CompanyOpeningController::class, 'reverse'])->name('company.opening.reverse');
         Route::get('company/logo',[\App\Http\Controllers\CompanyController::class, 'logo'])->name('company.logo');
         Route::post('company/logo', [\App\Http\Controllers\CompanyController::class, 'uploadLogo'])->name('company.logo.upload');
         Route::post('company/logo/remove', [\App\Http\Controllers\CompanyController::class, 'removeLogo'])->name('company.logo.remove');

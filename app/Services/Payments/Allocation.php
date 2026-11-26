@@ -25,7 +25,7 @@ final class Allocation
     public static function rank(string $type): int
     {
         return match ($type) {
-            ChargeType::Rent->value => 0,
+            ChargeType::Opening->value, ChargeType::Rent->value => 0,
             ChargeType::Utility->value, ChargeType::FixedFee->value => 1,
             ChargeType::Penalty->value, ChargeType::Other->value => 2,
             ChargeType::Deposit->value => 3,
@@ -46,10 +46,20 @@ final class Allocation
 
         $groups = [];
         $available = 0;
+        $prepaid = []; // начален депозит: начислен и внесен (имот => [месец, центове])
         foreach ($entries as $e) {
             $cents = Cents::from((string) $e->amount);
             if (in_array($e->kind, [LedgerKind::Payment->value, LedgerKind::PaymentReversal->value], true)) {
                 $available -= $cents;
+                continue;
+            }
+            // Начален депозит (26.11.2026): двойката 418 + / 418 − се брои за платен депозит, извън разнасянето.
+            $opening = in_array($e->kind, [LedgerKind::Opening->value, LedgerKind::OpeningReversal->value], true);
+            if ($opening && $e->type === ChargeType::Deposit->value) {
+                $chargeSide = ($e->kind === LedgerKind::Opening->value) === ($cents > 0);
+                if ($chargeSide) {
+                    $prepaid[$e->property_id] = [(string) $e->month, ($prepaid[$e->property_id][1] ?? 0) + $cents];
+                }
                 continue;
             }
             $key = $e->month.'|'.($e->statement_id ?? 0).'|'.$e->type.'|'.$e->property_id;
@@ -73,6 +83,11 @@ final class Allocation
             $paid = max(0, min($debt['amount'], $available));
             $debts[$i]['paid'] = $paid;
             $available -= $paid;
+        }
+        foreach ($prepaid as $propertyId => [$month, $cents]) {
+            if ($cents > 0) {
+                $debts[] = ['month' => $month, 'statement_id' => null, 'type' => ChargeType::Deposit->value, 'property_id' => (int) $propertyId, 'amount' => $cents, 'paid' => $cents];
+            }
         }
 
         return ['debts' => $debts, 'available' => $available];

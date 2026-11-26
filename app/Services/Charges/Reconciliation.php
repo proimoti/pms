@@ -391,7 +391,7 @@ class Reconciliation
     {
         return LedgerEntry::query()->withoutGlobalScope(RegistryVisibilityScope::class)
             ->whereIn('account', [LedgerAccount::Tenant, LedgerAccount::Deposit, LedgerAccount::Owner])
-            ->whereNotIn('kind', LedgerKind::money()); // плащанията и изплащанията не са начисления (26.11.2026)
+            ->whereNotIn('kind', LedgerKind::notAccrual()); // плащанията и изплащанията не са начисления (26.11.2026)
     }
 
     private function companyId(): int

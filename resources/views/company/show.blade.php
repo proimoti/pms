@@ -10,6 +10,7 @@
     </div>
     <p class="muted">{{ __('company.intro') }}</p>
     <p><a href="/company/export">{{ __('export.settings.link') }}</a></p>
+    <p><a href="/company/opening">{{ __('opening.link') }}</a></p>
 
     @php($f = 'company.fields.')
     <dl>

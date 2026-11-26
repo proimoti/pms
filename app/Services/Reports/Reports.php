@@ -121,7 +121,7 @@ final class Reports
 
         // Само начисленото (без изплащанията, 26.11.2026).
         $sums = LedgerEntry::query()->where('account', LedgerAccount::Owner->value)->whereDate('month', $month->toDateString())
-            ->whereNotIn('kind', \App\Enums\LedgerKind::money())
+            ->whereNotIn('kind', \App\Enums\LedgerKind::notAccrual())
             ->groupBy('owner_contract_id', 'property_id')->selectRaw('owner_contract_id, property_id, SUM(amount) as total')->get();
 
         $groups = [];

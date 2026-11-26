@@ -17,11 +17,12 @@ enum ChargeType: string
     case Other = 'other';         // друго, с бележка
     case Owner = 'owner';         // към собственика (408)
     case Payment = 'payment';     // плащане (в книгата, не начисление; 26.11.2026)
+    case Opening = 'opening';     // начално салдо (в книгата, не начисление; 26.11.2026)
 
     /** Към наемателя (418) ли е; иначе към собственика. */
     public function forTenant(): bool
     {
-        return $this !== self::Owner && $this !== self::Payment;
+        return ! in_array($this, [self::Owner, self::Payment, self::Opening], true);
     }
 
     /** Смята се по дни (наем × дни ÷ дни в месеца); иначе е еднократна сума. */

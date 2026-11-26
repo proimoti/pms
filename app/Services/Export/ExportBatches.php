@@ -25,7 +25,7 @@ use Illuminate\Validation\ValidationException;
 final class ExportBatches
 {
     /** Видовете записи, които не влизат в пакетите. */
-    public const NOT_EXPORTED = ['payment', 'payment_reversal', 'payout', 'payout_reversal'];
+    public const NOT_EXPORTED = ['payment', 'payment_reversal', 'payout', 'payout_reversal', 'opening', 'opening_reversal'];
 
     public function __construct(private readonly ExportSettings $settings) {}
 

@@ -59,7 +59,7 @@ final class Settlements
         $rent = LedgerEntry::query()->where('account', LedgerAccount::Tenant->value)->where('type', ChargeType::Rent->value)
             ->whereIn('month', $dates)->whereNotNull('property_id')
             ->groupBy('property_id', 'lease_contract_id')->selectRaw('property_id, lease_contract_id, SUM(amount) as total')->get();
-        $owner = LedgerEntry::query()->where('account', LedgerAccount::Owner->value)->whereNotIn('kind', \App\Enums\LedgerKind::money())
+        $owner = LedgerEntry::query()->where('account', LedgerAccount::Owner->value)->whereNotIn('kind', \App\Enums\LedgerKind::notAccrual())
             ->whereIn('month', $dates)->whereNotNull('property_id')
             ->groupBy('property_id', 'owner_contract_id')->selectRaw('property_id, owner_contract_id, SUM(amount) as total')->get();
 
