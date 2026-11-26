@@ -14,7 +14,7 @@
         .home-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; }
         .home-head h1 { margin: 0 0 4px; }
         .home-head .actions .button { margin-top: 0; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600; }
-        .home-band { background: var(--menu); color: #fff; border-radius: 12px; padding: 22px 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+        .home-band { background: var(--menu); color: #fff; border-radius: 12px; padding: 22px 24px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; }
         .home-band > div { display: flex; flex-direction: column; gap: 6px; }
         .home-band .label, .home-band .sub { font-size: 13px; color: var(--menu-soft); }
         .home-band .big { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -75,6 +75,11 @@
             <span class="label">{{ __('home.commission') }}</span>
             <span class="big gain">{{ $home['totals'] ? Format::money($home['totals']['commission']).' €' : __('registry.none') }}</span>
         </div>
+        <div>
+            <span class="label">{{ __('home.received', ['month' => mb_strtolower(__('charges.months.'.$home['received_month']->month))]) }}</span>
+            <span class="big">{{ Format::money($home['received']) }} €</span>
+            <a href="/payments">{{ __('home.received_link') }}</a>
+        </div>
     </section>
 
     <div class="home-lists">
@@ -98,7 +103,15 @@
             @if ($home['follow']['vacant'] > 0)
                 <a class="home-row" href="/reports/vacant"><span>{{ __('home.follow.vacant') }}</span><span class="meta">{{ $home['follow']['vacant'] }}</span></a>
             @endif
-            @if ($home['follow']['expiring'] === [] && $home['follow']['expired'] === [] && $home['follow']['vacant'] === 0)
+            {{-- Салдата (26.11.2026): само ненулевите. --}}
+            @if ((float) $home['follow']['tenants_owe'] > 0)
+                <a class="home-row" href="/tenants"><span>{{ __('home.follow.tenants_owe') }}</span><span class="meta">{{ Format::money($home['follow']['tenants_owe']) }} €</span></a>
+            @endif
+            @if ((float) $home['follow']['owners_unpaid'] > 0)
+                <a class="home-row" href="/reports/payouts"><span>{{ __('home.follow.owners_unpaid') }}</span><span class="meta">{{ Format::money($home['follow']['owners_unpaid']) }} €</span></a>
+            @endif
+            @if ($home['follow']['expiring'] === [] && $home['follow']['expired'] === [] && $home['follow']['vacant'] === 0
+                && (float) $home['follow']['tenants_owe'] <= 0 && (float) $home['follow']['owners_unpaid'] <= 0)
                 <p class="muted">{{ __('home.follow.nothing') }}</p>
             @endif
         </section>

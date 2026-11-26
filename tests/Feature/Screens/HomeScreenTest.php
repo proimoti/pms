@@ -109,7 +109,9 @@ class HomeScreenTest extends ScreenTestCase
         $band = $this->section('home-month');
         $this->assertStringContainsString('Януари 2027', $band);
         $this->assertStringContainsString(__('home.states.none'), $band);
-        $this->assertStringNotContainsString('€', $band);
+        // Негенериран месец: наемът и резултатът са „—“ (в лентата има и получените плащания в евро, 26.11.2026).
+        $this->assertStringNotContainsString('500,00', $band);
+        $this->assertStringContainsString('<span class="big gain">'.__('registry.none').'</span>', $band);
 
         app(MonthWorksheet::class)->generate('2027-01');
         $band = $this->section('home-month');

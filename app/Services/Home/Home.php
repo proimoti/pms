@@ -52,7 +52,12 @@ final class Home
             'occupancy' => ['occupied' => $occupied, 'total' => $total, 'percent' => $total > 0 ? intdiv($occupied * 100, $total) : 0],
             'totals' => $this->totals($month),
             'decide' => $this->decide($month, $key),
-            'follow' => $this->follow($today, count($vacant)),
+            'follow' => $this->follow($today, count($vacant)) + $this->balances(),
+            // Получени плащания през текущия месец (сторната се приспадат), 26.11.2026.
+            'received' => Cents::format((int) \App\Models\Payment::query()->whereIn('lease_contract_id', \App\Models\LeaseContract::query()->select('id'))
+                ->whereDate('paid_on', '>=', $today->startOfMonth()->toDateString())->whereDate('paid_on', '<=', $today->endOfMonth()->toDateString())
+                ->get(['amount'])->sum(fn ($p) => Cents::from((string) $p->amount))),
+            'received_month' => $today->startOfMonth(),
             'canManage' => WorksheetRules::canManage(Auth::user()),
         ];
     }
@@ -101,6 +106,25 @@ final class Home
                 return $beneficiary === null || in_array($beneficiary->getRawOriginal('iban'), [null, ''], true);
             })
             ->count();
+    }
+
+    /**
+     * Дължат наемателите и неизплатено към собствениците (26.11.2026): салдата по
+     * договор (418 и 408 от книгата); надплатеното по един договор не намалява
+     * дълга по друг. Само видимото за служителя.
+     *
+     * @return array{tenants_owe: string, owners_unpaid: string}
+     */
+    private function balances(): array
+    {
+        $positive = fn (string $account, string $column) => \App\Models\LedgerEntry::query()->where('account', $account)
+            ->groupBy($column)->selectRaw($column.', SUM(amount) as total')->get()
+            ->sum(fn ($row) => max(0, Cents::from((string) $row->total)));
+
+        return [
+            'tenants_owe' => Cents::format($positive(\App\Enums\LedgerAccount::Tenant->value, 'lease_contract_id')),
+            'owners_unpaid' => Cents::format($positive(\App\Enums\LedgerAccount::Owner->value, 'owner_contract_id')),
+        ];
     }
 
     private function follow(CarbonImmutable $today, int $vacant): array
