@@ -33,7 +33,12 @@ final class PaymentService
         return CompanyScope::restrictedCompanyId() ?? throw new \LogicException('Плащането иска влязъл служител на фирма.');
     }
 
-    public function record(LeaseContract $lease, array $data): Payment
+    /**
+     * Проверка на полетата на едно плащане; всички грешки наведнъж.
+     *
+     * @return array{cents: int, paid_on: \Carbon\CarbonImmutable, method: string, bank_account_id: ?int}
+     */
+    public function validate(array $data): array
     {
         $errors = new MessageBag;
         $text = str_replace([' ', ','], ['', '.'], trim((string) ($data['amount'] ?? '')));
@@ -55,6 +60,13 @@ final class PaymentService
         if ($errors->isNotEmpty()) {
             throw ValidationException::withMessages($errors->toArray());
         }
+
+        return ['cents' => $cents, 'paid_on' => $paidOn, 'method' => $method, 'bank_account_id' => $bankId];
+    }
+
+    public function record(LeaseContract $lease, array $data): Payment
+    {
+        ['cents' => $cents, 'paid_on' => $paidOn, 'method' => $method, 'bank_account_id' => $bankId] = $this->validate($data);
 
         return DB::transaction(function () use ($lease, $cents, $paidOn, $method, $bankId, $data) {
             Ledger::lockCompany($this->companyId());
