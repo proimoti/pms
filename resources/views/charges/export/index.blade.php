@@ -32,8 +32,8 @@
                         <td class="nowrap">{{ __('export.batches.pending', ['count' => $row['pending']]) }}</td>
                         <td>
                             @foreach ($row['batches'] as $batch)
-                                <div>{{ __('export.batches.batch', ['number' => $batch->number, 'count' => $batch->entries_count,
-                                    'date' => $batch->created_at?->format('d.m.Y H:i'), 'user' => $batch->createdBy?->name]) }}</div>
+                                <div><a href="/export/batches/{{ $batch->id }}">{{ __('export.batches.batch', ['number' => $batch->number, 'count' => $batch->entries_count,
+                                    'date' => $batch->created_at?->format('d.m.Y H:i'), 'user' => $batch->createdBy?->name]) }}</a></div>
                             @endforeach
                         </td>
                         <td>

@@ -146,6 +146,8 @@ Route::middleware('auth')->group(function () {
         // Експорт към Микроинвест (26.11.2026): само управляващият начисленията.
         Route::get('export', [\App\Http\Controllers\Charges\ExportController::class, 'index'])->middleware($manage)->name('export.index');
         Route::post('export/batches', [\App\Http\Controllers\Charges\ExportController::class, 'store'])->middleware($manage)->name('export.store');
+        Route::get('export/batches/{batch}', [\App\Http\Controllers\Charges\ExportController::class, 'show'])->middleware($manage)->name('export.show');
+        Route::get('export/batches/{batch}/download', [\App\Http\Controllers\Charges\ExportController::class, 'download'])->middleware($manage)->name('export.download');
         // Изпращане (24.11.2026): само управляващият начисленията.
         Route::post('statements/send-month', [StatementController::class, 'sendMonth'])->middleware($manage)->name('statements.send-month');
         Route::post('statements/{statement}/send', [StatementController::class, 'send'])->middleware($manage)->name('statements.send');
