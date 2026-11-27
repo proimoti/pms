@@ -38,6 +38,14 @@ final class CompanyAddress
         return $request->attributes->get($key);
     }
 
+    /** Името на фирмата на адреса (за входа и писмата) или null. */
+    public static function companyName(Request $request): ?string
+    {
+        $id = self::companyId($request);
+
+        return $id === null ? null : \App\Models\Company::query()->withoutGlobalScopes()->whereKey($id)->value('name');
+    }
+
     /** Ограничава търсенето на потребител до профилите на адреса; непознат адрес — никого. */
     public static function constrain($query, Request $request)
     {

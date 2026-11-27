@@ -30,6 +30,19 @@ Route::get('/', function () {
 // Входът, изходът, забравената парола и вторият фактор са от Fortify
 // (config/fortify.php, app/Providers/FortifyServiceProvider.php).
 
+// Код по имейл след паролата, при вход в портала от ново устройство (27.11.2026).
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('login/code', [\App\Http\Controllers\Portal\LoginCodeController::class, 'show'])->name('login.code');
+    Route::post('login/code', [\App\Http\Controllers\Portal\LoginCodeController::class, 'verify'])->name('login.code.verify');
+});
+Route::post('login/code/resend', [\App\Http\Controllers\Portal\LoginCodeController::class, 'resend'])->middleware('throttle:3,1')->name('login.code.resend');
+
+// Порталът (27.11.2026): само за профилите с роля „клиент“.
+Route::middleware(['auth', \App\Http\Middleware\EnsurePortalClient::class])->group(function () {
+    Route::get('portal', [\App\Http\Controllers\Portal\PortalController::class, 'home'])->name('portal');
+    Route::get('portal/logo', [\App\Http\Controllers\Portal\PortalController::class, 'logo'])->name('portal.logo');
+});
+
 // „Задай парола“ по покана (27.11.2026): без вход, с ограничение на опитите.
 Route::middleware('throttle:10,1')->group(function () {
     Route::get('invitation/{token}', [\App\Http\Controllers\Auth\InvitationController::class, 'show'])->name('invitation.show');
@@ -100,8 +113,14 @@ Route::middleware('auth')->group(function () {
             Route::post("{$section}/{{$parameter}}/restore", [$controller, 'restore'])->middleware($write)->name("{$section}.restore");
         }
 
-        // Абонати на битовите услуги (PROJECT.md, т. 3.4, 21.11.2026).
+        // Портал от картата на наемателя и собственика (27.11.2026): само с „четене и запис“.
         $write = EnsureRegistryAccess::class.':write';
+        Route::post('tenants/{tenant}/portal/{action}', [\App\Http\Controllers\Portal\PortalCardController::class, 'tenant'])
+            ->whereIn('action', ['invite', 'stop', 'restore'])->middleware($write)->name('tenants.portal');
+        Route::post('owners/{owner}/portal/{action}', [\App\Http\Controllers\Portal\PortalCardController::class, 'owner'])
+            ->whereIn('action', ['invite', 'stop', 'restore'])->middleware($write)->name('owners.portal');
+
+        // Абонати на битовите услуги (PROJECT.md, т. 3.4, 21.11.2026).
         Route::get('utility-accounts', [UtilityAccountController::class, 'index'])->name('utility-accounts.index');
         Route::get('utility-accounts/create', [UtilityAccountController::class, 'create'])->middleware($write)->name('utility-accounts.create');
         Route::post('utility-accounts', [UtilityAccountController::class, 'store'])->middleware($write)->name('utility-accounts.store');

@@ -25,5 +25,7 @@
         @include('dossiers.tenant')
     @endif
 
+    @include('portal.card', ['party' => $party, 'section' => $section])
+
     @include('registry.partials.record-actions', ['section' => $section, 'record' => $party])
 @endsection

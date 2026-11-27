@@ -3,8 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {{-- Страниците за клиента (поканата) показват името на фирмата, не на приложението (27.11.2026). --}}
-    <title>@yield('title') – @yield('brand', config('app.name'))</title>
+    {{-- Входът, забравената парола, кодът и поканата показват името на фирмата на адреса, не на приложението (27.11.2026). --}}
+    @php($brandName = auth()->guest() ? (\App\Support\CompanyAddress::companyName(request()) ?? config('app.name')) : config('app.name'))
+    <title>@yield('title') – @yield('brand', $brandName)</title>
     <style>
         /* Общ вид (24.11.2026, вариант Б от макетите): тъмно меню вляво, светли карти върху сив фон; системният шрифт, без външни файлове. */
         :root {
@@ -198,6 +199,9 @@
 @endif
 <div class="page">
 <main class="@yield('width')">
+    @guest
+        @unless (View::hasSection('brand'))<p class="muted" style="font-weight: 600; margin: 0 0 8px;">{{ $brandName }}</p>@endunless
+    @endguest
     @if (session('status') && is_string(session('status')) && ! str_starts_with(session('status'), 'two-factor'))
         <div class="status">{{ session('status') }}</div>
     @endif

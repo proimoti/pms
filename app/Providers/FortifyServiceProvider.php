@@ -26,6 +26,10 @@ class FortifyServiceProvider extends ServiceProvider
         // Забравена парола: един и същ отговор, независимо дали имейлът съществува.
         $this->app->bind(SuccessfulPasswordResetLinkRequestResponse::class, PasswordResetLinkResponse::class);
         $this->app->bind(FailedPasswordResetLinkRequestResponse::class, PasswordResetLinkResponse::class);
+
+        // След вход клиентът отива в портала (27.11.2026).
+        $this->app->singleton(\Laravel\Fortify\Contracts\LoginResponse::class, \App\Http\Responses\LoginResponse::class);
+        $this->app->singleton(\Laravel\Fortify\Contracts\TwoFactorLoginResponse::class, \App\Http\Responses\LoginResponse::class);
     }
 
     public function boot(): void
@@ -60,6 +64,18 @@ class FortifyServiceProvider extends ServiceProvider
             }
             if ($user->isStopped()) {
                 throw ValidationException::withMessages(['email' => __('auth.access_stopped')]);
+            }
+
+            // Портал (27.11.2026): достъп, докато има неархивиран свързан запис; при ново
+            // устройство — код по имейл. Който е включил приложението, ползва него.
+            if ($user->role === \App\Enums\Role::Client) {
+                if (! \App\Support\PortalAccess::hasAccess($user)) {
+                    throw ValidationException::withMessages(['email' => __('auth.access_stopped')]);
+                }
+                if (! $user->hasEnabledTwoFactorAuthentication() && ! \App\Support\TrustedDevices::isTrusted($user, $request)) {
+                    \App\Support\LoginCode::start($user, $request, $request->boolean('remember'));
+                    throw new \Illuminate\Http\Exceptions\HttpResponseException(redirect('/login/code'));
+                }
             }
 
             return $user;

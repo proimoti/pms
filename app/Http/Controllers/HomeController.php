@@ -13,9 +13,12 @@ use Illuminate\View\View;
  */
 class HomeController extends Controller
 {
-    public function __invoke(Request $request, Home $home): View
+    public function __invoke(Request $request, Home $home): View|\Illuminate\Http\RedirectResponse
     {
         $user = $request->user();
+        if ($user->role === Role::Client) {
+            return redirect('/portal'); // клиентът е в портала (27.11.2026)
+        }
         if ($user->role !== Role::Staff || $user->company_id === null) {
             return view('dashboard');
         }

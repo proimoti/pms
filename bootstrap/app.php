@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // При всяка заявка: потребителят е от фирмата на адреса (27.11.2026), фирмата е
         // активна, после задължителен втори фактор.
+        // Бисквитката на запомненото устройство е случаен ключ, пазен в базата само като отпечатък (27.11.2026).
+        $middleware->encryptCookies(except: [\App\Support\TrustedDevices::COOKIE]);
+
         $middleware->web(append: [
             EnsureCompanyAddress::class,
             EnsureCompanyIsActive::class,

@@ -38,6 +38,9 @@ final class UserAccess
         DB::transaction(function () use ($user, $by, $stop) {
             $old = $user->getRawOriginal('disabled_at');
             $user->forceFill(['disabled_at' => $stop ? now() : null])->save();
+            if ($stop) {
+                TrustedDevices::forget($user); // запомнените устройства за портала (27.11.2026)
+            }
 
             UserAudit::write($user, $by, $stop ? 'access_stopped' : 'access_restored',
                 ['disabled_at' => ['old' => $old, 'new' => $user->getRawOriginal('disabled_at')]]);

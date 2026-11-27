@@ -19,7 +19,10 @@ class EnsureAccessNotStopped
         $user = $request->user();
         $stopped = fn () => User::query()->withoutGlobalScopes()->whereKey($user->id)->whereNotNull('disabled_at')->exists();
 
-        if ($user !== null && $stopped()) {
+        // Клиент без неархивиран свързан запис (27.11.2026) — също без достъп.
+        $noPortal = fn () => $user->role === \App\Enums\Role::Client && ! \App\Support\PortalAccess::hasAccess($user);
+
+        if ($user !== null && ($stopped() || $noPortal())) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
