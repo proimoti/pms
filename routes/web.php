@@ -57,6 +57,18 @@ Route::middleware('auth')->group(function () {
         Route::post('company/logo', [\App\Http\Controllers\CompanyController::class, 'uploadLogo'])->name('company.logo.upload');
         Route::post('company/logo/remove', [\App\Http\Controllers\CompanyController::class, 'removeLogo'])->name('company.logo.remove');
         Route::put('company', [\App\Http\Controllers\CompanyController::class, 'update'])->name('company.update');
+
+        // Служители (27.11.2026): само за администратора на фирмата (проверката е в контролера).
+        Route::get('staff', [\App\Http\Controllers\StaffController::class, 'index'])->name('staff.index');
+        Route::get('staff/create', [\App\Http\Controllers\StaffController::class, 'create'])->name('staff.create');
+        Route::post('staff', [\App\Http\Controllers\StaffController::class, 'store'])->name('staff.store');
+        Route::get('staff/{staff}', [\App\Http\Controllers\StaffController::class, 'show'])->whereNumber('staff')->name('staff.show');
+        Route::put('staff/{staff}', [\App\Http\Controllers\StaffController::class, 'update'])->whereNumber('staff')->name('staff.update');
+        Route::put('staff/{staff}/properties', [\App\Http\Controllers\StaffController::class, 'properties'])->whereNumber('staff')->name('staff.properties');
+        Route::post('staff/{staff}/stop', [\App\Http\Controllers\StaffController::class, 'stop'])->whereNumber('staff')->name('staff.stop');
+        Route::post('staff/{staff}/restore', [\App\Http\Controllers\StaffController::class, 'restore'])->whereNumber('staff')->name('staff.restore');
+        Route::post('staff/{staff}/invite', [\App\Http\Controllers\StaffController::class, 'invite'])->whereNumber('staff')->name('staff.invite');
+        Route::post('staff/{staff}/reset-two-factor', [\App\Http\Controllers\StaffController::class, 'resetTwoFactor'])->whereNumber('staff')->name('staff.reset-two-factor');
         Route::get('company/bank-accounts/create', [\App\Http\Controllers\CompanyController::class, 'createAccount'])->name('company.accounts.create');
         Route::post('company/bank-accounts', [\App\Http\Controllers\CompanyController::class, 'storeAccount'])->name('company.accounts.store');
         Route::get('company/bank-accounts/{account}/edit', [\App\Http\Controllers\CompanyController::class, 'editAccount'])->name('company.accounts.edit');

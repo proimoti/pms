@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -40,14 +39,8 @@ final class UserAccess
             $old = $user->getRawOriginal('disabled_at');
             $user->forceFill(['disabled_at' => $stop ? now() : null])->save();
 
-            AuditLog::query()->make()->forceFill([
-                'company_id' => $user->company_id,
-                'user_id' => $by->id,
-                'auditable_type' => 'users',
-                'auditable_id' => $user->id,
-                'event' => $stop ? 'access_stopped' : 'access_restored',
-                'changes' => ['disabled_at' => ['old' => $old, 'new' => $user->getRawOriginal('disabled_at')]],
-            ])->save();
+            UserAudit::write($user, $by, $stop ? 'access_stopped' : 'access_restored',
+                ['disabled_at' => ['old' => $old, 'new' => $user->getRawOriginal('disabled_at')]]);
         });
     }
 }

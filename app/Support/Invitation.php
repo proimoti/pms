@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Mail\InvitationMail;
 use App\Mail\MailGuard;
-use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\CompanyDomain;
 use App\Models\EmailLog;
@@ -54,7 +53,7 @@ final class Invitation
         $expires = now()->addHours(self::HOURS);
         DB::transaction(function () use ($user, $by, $token, $expires) {
             $user->forceFill(['invitation_token' => hash('sha256', $token), 'invitation_expires_at' => $expires])->save();
-            self::audit($user, $by, 'invited', ['invitation_expires_at' => ['old' => null, 'new' => $expires->toDateTimeString()]]);
+            UserAudit::write($user, $by, 'invited', ['invitation_expires_at' => ['old' => null, 'new' => $expires->toDateTimeString()]]);
         });
 
         $scheme = parse_url((string) config('app.url'), PHP_URL_SCHEME) ?: 'https';
@@ -102,7 +101,7 @@ final class Invitation
                 'invitation_accepted_at' => now(),
                 'email_verified_at' => $user->email_verified_at ?? now(),
             ])->save();
-            self::audit($user, $user, 'invitation_accepted', ['invitation_accepted_at' => ['old' => null, 'new' => now()->toDateTimeString()]]);
+            UserAudit::write($user, $user, 'invitation_accepted', ['invitation_accepted_at' => ['old' => null, 'new' => now()->toDateTimeString()]]);
         });
     }
 
@@ -114,18 +113,6 @@ final class Invitation
         }
 
         return CompanyDomain::query()->withoutGlobalScopes()->where('company_id', $company->id)->orderBy('id')->value('host');
-    }
-
-    private static function audit(User $user, User $by, string $event, array $changes): void
-    {
-        AuditLog::query()->make()->forceFill([
-            'company_id' => $user->company_id,
-            'user_id' => $by->id,
-            'auditable_type' => 'users',
-            'auditable_id' => $user->id,
-            'event' => $event,
-            'changes' => $changes,
-        ])->save();
     }
 
     private static function log(Company $company, array $attributes): EmailLog

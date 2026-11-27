@@ -9,6 +9,7 @@
         <a class="button" style="margin-top: 0;" href="/company/edit">{{ __('company.edit') }}</a>
     </div>
     <p class="muted">{{ __('company.intro') }}</p>
+    <p><a href="/staff">{{ __('staff.link') }}</a></p>
     <p><a href="/company/export">{{ __('export.settings.link') }}</a></p>
     <p><a href="/company/opening">{{ __('opening.link') }}</a></p>
 
