@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title') – {{ config('app.name') }}</title>
+    {{-- Страниците за клиента (поканата) показват името на фирмата, не на приложението (27.11.2026). --}}
+    <title>@yield('title') – @yield('brand', config('app.name'))</title>
     <style>
         /* Общ вид (24.11.2026, вариант Б от макетите): тъмно меню вляво, светли карти върху сив фон; системният шрифт, без външни файлове. */
         :root {

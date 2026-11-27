@@ -18,7 +18,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 // Ролята, фирмата и правата нарочно не са във Fillable:
 // задават се изрично, не идват направо от попълнена форма.
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'invitation_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -41,6 +41,8 @@ class User extends Authenticatable
             'can_view_sensitive' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
             'disabled_at' => 'datetime',
+            'invitation_expires_at' => 'datetime',
+            'invitation_accepted_at' => 'datetime',
         ];
     }
 

@@ -30,6 +30,12 @@ Route::get('/', function () {
 // Входът, изходът, забравената парола и вторият фактор са от Fortify
 // (config/fortify.php, app/Providers/FortifyServiceProvider.php).
 
+// „Задай парола“ по покана (27.11.2026): без вход, с ограничение на опитите.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('invitation/{token}', [\App\Http\Controllers\Auth\InvitationController::class, 'show'])->name('invitation.show');
+    Route::post('invitation/{token}', [\App\Http\Controllers\Auth\InvitationController::class, 'accept'])->name('invitation.accept');
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', \App\Http\Controllers\HomeController::class)->name('dashboard');
 
