@@ -97,20 +97,38 @@ class LeaseContractController extends RegistryController
             'extensions' => fn ($q) => $q->orderBy('end_on'),
         ]);
 
+        $entries = LedgerEntry::query()->where('lease_contract_id', $contract->id)->orderBy('month')->orderBy('id')->get();
+
         return view('contracts.lease.show', [
             'contract' => $contract,
             'annexNumbers' => $contract->annexes->pluck('number', 'id'),
             'withoutManagement' => $this->leases->propertiesWithoutManagement($contract),
-            'entries' => LedgerEntry::query()->where('lease_contract_id', $contract->id)->orderBy('month')->orderBy('id')->get(),
+            // Книгата в две таблици (27.11.2026): сметката на наемателя (418) без двойката
+            // „депозит начислен / внесен“ от началното салдо (тя се нулира) и депозитът (491).
+            'entries' => $entries->reject(fn ($e) => $e->account === \App\Enums\LedgerAccount::Deposit || $this->isOpeningDepositPair($e))->values(),
+            'depositEntries' => $entries->filter(fn ($e) => $e->account === \App\Enums\LedgerAccount::Deposit)->values(),
+            'depositPaid' => app(\App\Services\Payments\Allocation::class)->depositPaid((int) $contract->company_id, (int) $contract->id),
+            'closingReversals' => \App\Models\DepositClosing::query()->where('lease_contract_id', $contract->id)->whereNotNull('reversal_of_id')->pluck('id')->all(),
             'owes' => app(\App\Services\Dossiers\Dossier::class)->leaseOwes($contract),
             'statements' => app(\App\Services\Dossiers\Dossier::class)->leaseStatements($contract),
             // Плащанията по договора (26.11.2026), най-новите първи.
             'payments' => \App\Models\Payment::query()->with(['bankAccount', 'createdBy', 'reversal'])->where('lease_contract_id', $contract->id)
                 ->whereNull('reversal_of_id')->orderByDesc('paid_on')->orderByDesc('id')->get(),
             'canPay' => \App\Models\Concerns\WorksheetRules::canManage(auth()->user()),
+            // Депозитът: държаният (491) и приключванията (26.11.2026), най-новите първи.
+            'heldDeposit' => array_sum(app(\App\Services\Payments\DepositClosingService::class)->held($contract)),
+            'closings' => \App\Models\DepositClosing::query()->with(['entries' => fn ($q) => $q->withoutGlobalScope(\App\Models\Scopes\RegistryVisibilityScope::class), 'createdBy', 'reversal'])
+                ->where('lease_contract_id', $contract->id)->whereNull('reversal_of_id')->orderByDesc('closed_on')->orderByDesc('id')->get(),
             'paid' => app(\App\Services\Payments\Allocation::class)->byStatement((int) $contract->company_id, \App\Models\Statement::query()->where('lease_contract_id', $contract->id)->get()),
             'canIssue' => WorksheetRules::canManage(auth()->user()) && ! $contract->isArchived(),
         ]);
+    }
+
+    /** Началният депозит по 418 (418 + и 418 −, и сторното им): брои се за начислен и внесен, сборът е 0. */
+    private function isOpeningDepositPair(LedgerEntry $entry): bool
+    {
+        return $entry->account === \App\Enums\LedgerAccount::Tenant && $entry->type === \App\Enums\ChargeType::Deposit
+            && in_array($entry->kind, [\App\Enums\LedgerKind::Opening, \App\Enums\LedgerKind::OpeningReversal], true);
     }
 
     public function edit(LeaseContract $contract): View

@@ -158,6 +158,10 @@ Route::middleware('auth')->group(function () {
         Route::get('payments/batch', [\App\Http\Controllers\Payments\PaymentController::class, 'batchForm'])->middleware($manage)->name('payments.batch');
         Route::post('payments/batch', [\App\Http\Controllers\Payments\PaymentController::class, 'batchStore'])->middleware($manage)->name('payments.batch.store');
         Route::post('payments/{payment}/reverse', [\App\Http\Controllers\Payments\PaymentController::class, 'reverse'])->middleware($manage)->name('payments.reverse');
+        // Приключване на депозит (26.11.2026).
+        Route::get('lease-contracts/{contract}/deposit-closings/create', [\App\Http\Controllers\Payments\DepositClosingController::class, 'create'])->middleware($manage)->name('deposits.create');
+        Route::post('lease-contracts/{contract}/deposit-closings', [\App\Http\Controllers\Payments\DepositClosingController::class, 'store'])->middleware($manage)->name('deposits.store');
+        Route::post('deposit-closings/{closing}/reverse', [\App\Http\Controllers\Payments\DepositClosingController::class, 'reverse'])->middleware($manage)->name('deposits.reverse');
         // Експорт към Микроинвест (26.11.2026): само управляващият начисленията.
         Route::get('export', [\App\Http\Controllers\Charges\ExportController::class, 'index'])->middleware($manage)->name('export.index');
         Route::post('export/batches', [\App\Http\Controllers\Charges\ExportController::class, 'store'])->middleware($manage)->name('export.store');

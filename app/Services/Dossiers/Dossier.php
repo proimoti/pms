@@ -165,6 +165,7 @@ final class Dossier
     public function tenantDeposits(Collection $leases): array
     {
         $charged = LedgerEntry::query()->where('account', LedgerAccount::Deposit->value)->whereIn('lease_contract_id', $leases->pluck('id'))
+            ->whereNotIn('kind', \App\Enums\LedgerKind::depositClosing()) // приключването не намалява начисления
             ->groupBy('lease_contract_id')->selectRaw('lease_contract_id, SUM(amount) as total')->pluck('total', 'lease_contract_id');
         $result = [];
         foreach ($leases as $lease) {

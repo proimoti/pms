@@ -36,6 +36,7 @@ return [
             'revenue_penalty' => 'Неустойки',
             'revenue_other' => '„Друго“',
             'manager_cost' => '„За сметка на управителя“ (разход)',
+            'deposit_income' => 'Приход от задържан депозит',
             'include_paid_bills' => 'Да се експортират платените битови сметки (407 → банка)',
             'bank_epay' => 'Банка за ePay',
             'bank_easypay' => 'Банка за EasyPay',

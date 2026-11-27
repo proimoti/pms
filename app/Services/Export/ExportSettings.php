@@ -30,7 +30,7 @@ final class ExportSettings
         foreach (OwnerContractType::cases() as $type) {
             $keys['revenue_'.$type->value] = 'account';
         }
-        $keys += ['revenue_penalty' => 'account', 'revenue_other' => 'account', 'manager_cost' => 'account',
+        $keys += ['revenue_penalty' => 'account', 'revenue_other' => 'account', 'manager_cost' => 'account', 'deposit_income' => 'account',
             'include_paid_bills' => 'flag', 'bank_epay' => 'account', 'bank_easypay' => 'account'];
         foreach (UtilityKind::cases() as $kind) {
             $keys['kind_'.$kind->value] = 'code';
@@ -109,6 +109,9 @@ final class ExportSettings
             $required = match (true) {
                 $type === 'flag' => false,
                 in_array($key, ['bank_epay', 'bank_easypay'], true) => $this->includePaidBills(),
+                // Сметката за приход от депозит — само ако фирмата има такъв приход (26.11.2026).
+                $key === 'deposit_income' => \App\Models\LedgerEntry::query()->withoutGlobalScopes()->where('company_id', \App\Models\Scopes\CompanyScope::restrictedCompanyId())
+                    ->where('kind', \App\Enums\LedgerKind::DepositIncome->value)->exists(),
                 $type === 'code' => in_array(substr($key, 5), $kindsInUse, true),
                 default => true,
             };

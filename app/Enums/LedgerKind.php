@@ -18,11 +18,20 @@ enum LedgerKind: string
     case PayoutReversal = 'payout_reversal';  // сторно на изплащане (408 +)
     case Opening = 'opening';                 // начално салдо (418, 491, 407 на фонда), 26.11.2026
     case OpeningReversal = 'opening_reversal'; // сторно на началните салда
+    case DepositOffset = 'deposit_offset';   // приключване на депозит: прихващане (491 − и 418 −), 26.11.2026
+    case DepositRefund = 'deposit_refund';   // приключване на депозит: връщане на наемателя (491 −)
+    case DepositIncome = 'deposit_income';   // приключване на депозит: приход на фирмата (491 −)
 
-    /** Видовете, които не са начисления за месеца: плащания, изплащания и начални салда. */
+    /** Видовете, които не са начисления за месеца: плащания, изплащания, начални салда и приключване на депозит. */
     public static function notAccrual(): array
     {
-        return array_merge(self::money(), [self::Opening->value, self::OpeningReversal->value]);
+        return array_merge(self::money(), [self::Opening->value, self::OpeningReversal->value], self::depositClosing());
+    }
+
+    /** Приключването на депозит (сторното е със същите видове и обратен знак). */
+    public static function depositClosing(): array
+    {
+        return [self::DepositOffset->value, self::DepositRefund->value, self::DepositIncome->value];
     }
 
     /** Видовете, които са плащане или изплащане (не начисление). */

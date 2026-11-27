@@ -49,7 +49,8 @@ final class Allocation
         $prepaid = []; // начален депозит: начислен и внесен (имот => [месец, центове])
         foreach ($entries as $e) {
             $cents = Cents::from((string) $e->amount);
-            if (in_array($e->kind, [LedgerKind::Payment->value, LedgerKind::PaymentReversal->value], true)) {
+            // Прихванатото от депозита (26.11.2026) погасява дълга като плащане.
+            if (in_array($e->kind, [LedgerKind::Payment->value, LedgerKind::PaymentReversal->value, LedgerKind::DepositOffset->value], true)) {
                 $available -= $cents;
                 continue;
             }

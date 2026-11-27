@@ -151,7 +151,9 @@
 
     @include('payments.list', ['contract' => $contract, 'payments' => $payments, 'canPay' => $canPay])
 
-    <h2>{{ __('charges.issue.ledger') }}</h2>
+    {{-- Книгата в две таблици (27.11.2026): сметката на наемателя (418) и депозитът (491). --}}
+    <section id="tenant-ledger">
+    <h2>{{ __('charges.issue.tenant_ledger') }}</h2>
     @if ($entries->isEmpty())
         <p class="muted">{{ __('charges.issue.no_entries') }}</p>
     @else
@@ -184,6 +186,10 @@
             </table>
         </div>
     @endif
+    </section>
+
+    @include('deposits.list', ['contract' => $contract, 'entries' => $depositEntries, 'held' => $heldDeposit, 'paid' => $depositPaid,
+        'closings' => $closings, 'closingReversals' => $closingReversals, 'canPay' => $canPay])
 
     @include('registry.partials.record-actions', ['section' => 'lease-contracts', 'record' => $contract])
 @endsection

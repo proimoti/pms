@@ -101,7 +101,7 @@ class DossierScreensTest extends ScreenTestCase
     {
         $this->get("/lease-contracts/{$this->lease->id}")->assertOk()
             ->assertSeeInOrder([__('contracts.screens.fields.state'), __('dossiers.owes_on_contract'), '500,00', __('contracts.screens.fields.tenant')])
-            ->assertSeeInOrder([__('contracts.screens.sections.annexes'), __('dossiers.sections.statements'), __('charges.fields.month'), __('charges.issue.now'), __('charges.issue.ledger')])
+            ->assertSeeInOrder([__('contracts.screens.sections.annexes'), __('dossiers.sections.statements'), __('charges.fields.month'), __('charges.issue.now'), __('charges.issue.tenant_ledger'), __('deposits.section')])
             ->assertSee('<label for="issue-month">'.__('charges.fields.month').'</label>', false);
     }
 

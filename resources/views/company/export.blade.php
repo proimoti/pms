@@ -22,7 +22,7 @@
         'synthetic' => array_map(fn ($key) => $field($key, __($k.$key), __('export.settings.hints.synthetic')), ['tenant', 'deposit', 'owner', 'utility', 'fund']),
         'revenue' => array_map(fn ($type) => $field('revenue_'.$type->value, __('contracts.types.'.$type->value),
             $type === \App\Enums\OwnerContractType::Own ? __('export.settings.hints.revenue_own') : __('export.settings.hints.account')), \App\Enums\OwnerContractType::cases()),
-        'other' => array_map(fn ($key) => $field($key, __($k.$key), __('export.settings.hints.account')), ['revenue_penalty', 'revenue_other', 'manager_cost']),
+        'other' => array_map(fn ($key) => $field($key, __($k.$key), __('export.settings.hints.account')), ['revenue_penalty', 'revenue_other', 'manager_cost', 'deposit_income']),
         'paid' => array_map(fn ($key) => $field($key, __($k.$key), __('export.settings.hints.account')), ['bank_epay', 'bank_easypay']),
         'kinds' => array_map(fn ($kind) => $field('kind_'.$kind->value, __('utilities.kinds.'.$kind->value)), \App\Enums\UtilityKind::cases()),
     ])

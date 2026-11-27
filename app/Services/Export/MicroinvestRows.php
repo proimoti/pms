@@ -128,6 +128,9 @@ final class MicroinvestRows
                         ->orderByRaw('amount = ? desc', [$e->amount])->first();
                     $feeAccount = $accounts[$line?->utility_account_id] ?? null;
                     $rows[] = $row($cents, $debit, $fund($feeAccount?->fund_id), $kindLabel($feeAccount?->kind), $document($e));
+                } elseif ($kind === LedgerKind::DepositOffset) {
+                    // Прихващане от депозита (26.11.2026): 491/договор/имот → 418/договор/имот.
+                    $rows[] = $row(-$cents, $s->get('deposit').'/'.$lease($e).'/'.$property($e), $debit, __('export.file.basis.deposit'), $document($e));
                 } elseif ($type === ChargeType::Deposit) {
                     $rows[] = $row($cents, $debit, $s->get('deposit').'/'.$lease($e).'/'.$property($e), __('export.file.basis.deposit'), $document($e));
                 } elseif ($type === ChargeType::Penalty) {
@@ -139,7 +142,11 @@ final class MicroinvestRows
                 $included[] = $e;
                 $toOwner[$e->owner_contract_id][$e->property_id] = ($toOwner[$e->owner_contract_id][$e->property_id] ?? 0) - $cents;
             } elseif ($account === LedgerAccount::Deposit) {
-                $included[] = $e; // двойката е редът „депозит“ от 418
+                $included[] = $e; // двойката е редът „депозит“ (или прихващането) от 418
+                if ($kind === LedgerKind::DepositIncome) {
+                    // Депозит като приход на фирмата (26.11.2026): 491/договор/имот → сметката от настройките.
+                    $rows[] = $row(-$cents, $s->get('deposit').'/'.$lease($e).'/'.$property($e), (string) $s->get('deposit_income'), __('export.file.basis.deposit'), $document($e));
+                }
             } elseif ($account === LedgerAccount::Utility) {
                 $bill = $bills[$e->paid_utility_bill_id] ?? null;
                 $billAccount = $accounts[$bill?->utility_account_id] ?? null;

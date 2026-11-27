@@ -179,6 +179,69 @@ class OpeningBalancesTest extends ScreenTestCase
         $this->assertSame(50000, $allocation->depositPaid($this->company->id, $this->b->id));
     }
 
+    /** Част от картата на договора: „tenant-ledger“ (418) или „deposit-ledger“ (491). */
+    private function cardSection(LeaseContract $lease, string $id): string
+    {
+        $html = $this->get("/lease-contracts/{$lease->id}")->assertOk()->getContent();
+        $this->assertSame(1, preg_match('#<section id="'.$id.'">(.*?)</section>#s', $html, $match), $id);
+
+        return $match[1];
+    }
+
+    public function test_lease_card_shows_the_tenant_account_and_the_deposit_apart(): void
+    {
+        $this->import();
+
+        // 418: началното салдо по имотите, без двойката „депозит начислен / внесен“.
+        $tenant = $this->cardSection($this->a, 'tenant-ledger');
+        $this->assertStringContainsString(__('charges.issue.tenant_ledger'), $tenant);
+        $this->assertMatchesRegularExpression('#<td class="num">\s*300,00\s*</td>#', $tenant);
+        $this->assertMatchesRegularExpression('#<td class="num">\s*-50,00\s*</td>#', $tenant);
+        $this->assertStringNotContainsString('1 000,00', $tenant);
+        $this->assertStringNotContainsString(__('charges.types.deposit'), $tenant);
+
+        // 491: началният депозит с ясен надпис и държаният накрая.
+        $deposit = $this->cardSection($this->a, 'deposit-ledger');
+        $this->assertStringContainsString(__('deposits.section'), $deposit);
+        $this->assertStringContainsString(__('deposits.movements.opening'), $deposit);
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('deposits.held')).':\s*<strong>1 000,00 €#u', $deposit);
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('deposits.paid')).':\s*<strong>1 000,00 €#u', $deposit);
+
+        // След сторното на вноса: редът за сторно и държан 0.
+        app(\App\Services\Opening\OpeningBalances::class)->reverse('Грешен файл (измислено)');
+        $deposit = $this->cardSection($this->a, 'deposit-ledger');
+        $this->assertStringContainsString(__('deposits.movements.opening_reversal'), $deposit);
+        $this->assertMatchesRegularExpression('#<td class="num">\s*-1 000,00\s*</td>#', $deposit);
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('deposits.held')).':\s*<strong>0,00 €#u', $deposit);
+        $this->assertStringNotContainsString('1 000,00', $this->cardSection($this->a, 'tenant-ledger'));
+    }
+
+    public function test_reversal_returns_the_deposit_rows_too(): void
+    {
+        $this->import();
+        app(\App\Services\Opening\OpeningBalances::class)->reverse('Грешен файл (измислено)');
+
+        // Всеки запис от вноса има обратен: същата сметка, вид, договор и имот, сума с обратен знак.
+        $key = fn ($e) => implode('|', [$e->account->value, $e->type->value, $e->lease_contract_id, $e->property_id, $e->fund_id]);
+        $opening = LedgerEntry::query()->where('kind', LedgerKind::Opening->value)->orderBy('id')->get();
+        $reversal = LedgerEntry::query()->where('kind', LedgerKind::OpeningReversal->value)->orderBy('id')->get();
+        $this->assertSame($opening->map(fn ($e) => $key($e).'|'.(-(float) $e->amount))->all(), $reversal->map(fn ($e) => $key($e).'|'.(float) $e->amount)->all());
+
+        // Депозитът: 491 и двойката по 418 — по два договора.
+        $deposits = fn (string $kind, string $account) => LedgerEntry::query()->where('kind', $kind)->where('account', $account)
+            ->where('type', \App\Enums\ChargeType::Deposit->value)->pluck('amount')->map(fn ($a) => (float) $a)->sort()->values()->all();
+        $this->assertSame([-1000.0, -500.0], $deposits(LedgerKind::OpeningReversal->value, '491'));
+        $this->assertSame([-1000.0, -500.0, 500.0, 1000.0], $deposits(LedgerKind::OpeningReversal->value, '418'));
+
+        // Наемателят вече няма внесен депозит от вноса.
+        $allocation = app(\App\Services\Payments\Allocation::class);
+        foreach ([$this->a, $this->b] as $lease) {
+            $this->assertSame(0, $allocation->depositPaid($this->company->id, $lease->id));
+            $html = $this->get("/tenants/{$lease->tenant_id}")->getContent();
+            $this->assertStringNotContainsString('1 000,00', substr($html, strpos($html, 'id="deposits"')));
+        }
+    }
+
     public function test_fund_balance_may_be_negative(): void
     {
         $this->preview(['funds' => [$this->fund->id => '-30,50']])->assertOk();
