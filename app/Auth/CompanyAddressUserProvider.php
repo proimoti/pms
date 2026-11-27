@@ -18,6 +18,8 @@ class CompanyAddressUserProvider extends EloquentUserProvider
             return null;
         }
 
-        return CompanyAddress::constrain($this->newModelQuery(), request())->where('email', $credentials['email'])->first();
+        // Спреният профил (27.11.2026) не получава връзка за нова парола и старата не важи.
+        return CompanyAddress::constrain($this->newModelQuery(), request())->where('email', $credentials['email'])
+            ->whereNull('disabled_at')->first();
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnforceTwoFactor;
+use App\Http\Middleware\EnsureAccessNotStopped;
 use App\Http\Middleware\EnsureCompanyAddress;
 use App\Http\Middleware\EnsureCompanyIsActive;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsureCompanyAddress::class,
             EnsureCompanyIsActive::class,
+            EnsureAccessNotStopped::class,
             EnforceTwoFactor::class,
         ]);
     })

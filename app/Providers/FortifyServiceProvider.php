@@ -58,6 +58,9 @@ class FortifyServiceProvider extends ServiceProvider
             if ($user->company_id !== null && ! $user->company?->is_active) {
                 throw ValidationException::withMessages(['email' => __('auth.company_inactive')]);
             }
+            if ($user->isStopped()) {
+                throw ValidationException::withMessages(['email' => __('auth.access_stopped')]);
+            }
 
             return $user;
         });

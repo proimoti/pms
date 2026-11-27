@@ -40,7 +40,14 @@ class User extends Authenticatable
             'access_level' => AccessLevel::class,
             'can_view_sensitive' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
+            'disabled_at' => 'datetime',
         ];
+    }
+
+    /** Спрян достъп (27.11.2026): не влиза и се изкарва при следващата заявка. */
+    public function isStopped(): bool
+    {
+        return $this->disabled_at !== null;
     }
 
     /** Администраторът на приложението вижда потребителите на всички фирми. */
