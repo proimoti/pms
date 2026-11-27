@@ -47,6 +47,24 @@ class ResetTwoFactorCommandTest extends TestCase
             ->assertFailed();
     }
 
+    /** Имейлът е уникален в рамките на фирмата (27.11.2026): при два профила се казва ЕИК. */
+    public function test_email_in_two_companies_needs_the_company(): void
+    {
+        $a = User::factory()->withTwoFactor($this->secret())->create(['email' => 'same@example.test']);
+        $b = User::factory()->withTwoFactor($this->secret())->create(['email' => 'same@example.test']);
+
+        $this->artisan('pms:reset-two-factor', ['email' => 'same@example.test', '--force' => true])
+            ->expectsOutputToContain('--company')
+            ->assertFailed();
+        $this->assertNotNull($a->fresh()->two_factor_secret);
+        $this->assertNotNull($b->fresh()->two_factor_secret);
+
+        $this->artisan('pms:reset-two-factor', ['email' => 'same@example.test', '--company' => $b->company->eik, '--force' => true])
+            ->assertSuccessful();
+        $this->assertNotNull($a->fresh()->two_factor_secret);
+        $this->assertNull($b->fresh()->two_factor_secret);
+    }
+
     public function test_after_reset_the_user_must_set_up_the_second_factor_again(): void
     {
         $user = User::factory()->withTwoFactor($this->secret())->create();

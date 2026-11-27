@@ -76,13 +76,16 @@ class CompaniesAndUsersTest extends TestCase
         $this->assertSame('assigned', $row->property_scope, 'по подразбиране само прикачените имоти');
     }
 
-    public function test_email_is_unique_across_all_companies(): void
+    /** Променено 27.11.2026: имейлът е уникален в рамките на фирмата, не в цялото приложение. */
+    public function test_email_is_unique_within_a_company(): void
     {
-        User::factory()->for(Company::factory())->create(['email' => 'ivan@example.test']);
+        $company = Company::factory()->create();
+        User::factory()->for($company)->create(['email' => 'ivan@example.test']);
+        User::factory()->for(Company::factory())->create(['email' => 'ivan@example.test']); // друга фирма — може
 
-        $this->expectRuleViolation('users_email_unique');
+        $this->expectRuleViolation('users_company_id_email_unique');
 
-        User::factory()->for(Company::factory())->create(['email' => 'ivan@example.test']);
+        User::factory()->for($company)->create(['email' => 'ivan@example.test']);
     }
 
     public function test_company_vat_number_and_manager_are_optional(): void

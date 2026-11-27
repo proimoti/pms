@@ -70,11 +70,13 @@ class CreateAdminCommandTest extends TestCase
         $this->assertSame(0, User::query()->count());
     }
 
-    public function test_existing_email_is_rejected(): void
+    /** Имейлът е уникален в рамките на фирмата (27.11.2026); при администраторите — сред тях. */
+    public function test_existing_admin_email_is_rejected(): void
     {
-        User::factory()->tenant()->create(['email' => self::EMAIL]);
+        User::factory()->appAdmin()->create(['email' => self::EMAIL]);
 
         $this->artisan('pms:create-admin')
+            ->expectsConfirmation('Вече има администратор на приложението. Да се създаде ли още един?', 'yes')
             ->expectsQuestion('Имейл', self::EMAIL)
             ->assertFailed();
 
@@ -96,6 +98,7 @@ class CreateAdminCommandTest extends TestCase
     {
         $this->runCommand(self::EMAIL, self::PASSWORD, self::PASSWORD)->assertSuccessful();
 
+        $this->onAddressOf(null); // адресът на тестовете е на администратора (27.11.2026)
         $this->post('/login', ['email' => self::EMAIL, 'password' => self::PASSWORD]);
 
         $this->get('/dashboard')->assertRedirect('/two-factor/setup');

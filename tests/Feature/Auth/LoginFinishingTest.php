@@ -49,6 +49,7 @@ class LoginFinishingTest extends TestCase
     {
         Notification::fake();
         $user = User::factory()->tenant()->create(['email' => 'izmislen@example.test']);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
         $this->post('/forgot-password', ['email' => $user->email]);
 
         $mail = null;
@@ -99,6 +100,7 @@ class LoginFinishingTest extends TestCase
         // Извън production писмото излиза само при попълнен MAIL_REDIRECT_TO (пазачът на пощата, 24.11.2026).
         config(['mail.redirect_to' => 'office-test@example.test']);
         $user = User::factory()->tenant()->create(['email' => 'izmislen@example.test']);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
         $this->post('/forgot-password', ['email' => $user->email]);
 
         $sent = collect(Mail::mailer()->getSymfonyTransport()->messages());
@@ -115,6 +117,7 @@ class LoginFinishingTest extends TestCase
     public function test_authenticator_app_shows_pms(): void
     {
         $user = User::factory()->withTwoFactor('JBSWY3DPEHPK3PXP')->create(['email' => 'izmislen@example.test']);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $url = $user->twoFactorQrCodeUrl();
 

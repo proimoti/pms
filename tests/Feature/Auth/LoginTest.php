@@ -133,9 +133,12 @@ class LoginTest extends TestCase
 
     private function tenant(?Company $company = null): User
     {
-        return User::factory()
+        $user = User::factory()
             ->for($company ?? Company::factory())
             ->tenant()
             ->create(['password' => self::PASSWORD]);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
+
+        return $user;
     }
 }

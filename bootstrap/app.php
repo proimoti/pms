@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnforceTwoFactor;
+use App\Http\Middleware\EnsureCompanyAddress;
 use App\Http\Middleware\EnsureCompanyIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -14,8 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // При всяка заявка: първо активна фирма, после задължителен втори фактор.
+        // При всяка заявка: потребителят е от фирмата на адреса (27.11.2026), фирмата е
+        // активна, после задължителен втори фактор.
         $middleware->web(append: [
+            EnsureCompanyAddress::class,
             EnsureCompanyIsActive::class,
             EnforceTwoFactor::class,
         ]);

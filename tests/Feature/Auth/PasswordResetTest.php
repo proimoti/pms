@@ -26,6 +26,7 @@ class PasswordResetTest extends TestCase
     {
         Notification::fake();
         $user = User::factory()->tenant()->create();
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $this->post('/forgot-password', ['email' => $user->email]);
 
@@ -36,6 +37,7 @@ class PasswordResetTest extends TestCase
     {
         Notification::fake();
         $user = User::factory()->tenant()->create();
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $this->post('/forgot-password', ['email' => $user->email]);
 
@@ -50,6 +52,7 @@ class PasswordResetTest extends TestCase
     {
         Notification::fake();
         $user = User::factory()->tenant()->create();
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $known = $this->from('/forgot-password')->post('/forgot-password', ['email' => $user->email]);
         $knownStatus = session('status');
@@ -66,6 +69,7 @@ class PasswordResetTest extends TestCase
     public function test_password_is_reset_with_a_valid_link(): void
     {
         $user = User::factory()->tenant()->create();
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
         $token = Password::broker()->createToken($user);
 
         $this->post('/reset-password', [
@@ -81,6 +85,7 @@ class PasswordResetTest extends TestCase
     public function test_password_shorter_than_12_characters_is_rejected(): void
     {
         $user = User::factory()->tenant()->create();
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
         $token = Password::broker()->createToken($user);
         $oldHash = $user->password;
 
@@ -97,6 +102,7 @@ class PasswordResetTest extends TestCase
     public function test_password_of_exactly_12_characters_is_accepted(): void
     {
         $user = User::factory()->tenant()->create();
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
         $token = Password::broker()->createToken($user);
 
         $this->post('/reset-password', [

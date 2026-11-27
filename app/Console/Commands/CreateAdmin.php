@@ -35,7 +35,7 @@ class CreateAdmin extends Command
 
         $email = trim((string) $this->ask('Имейл'));
 
-        if ($this->fails(['email' => $email], ['email' => ['required', 'email', 'unique:users,email']])) {
+        if ($this->fails(['email' => $email], ['email' => ['required', 'email', \Illuminate\Validation\Rule::unique('users', 'email')->whereNull('company_id')]])) {
             return self::FAILURE;
         }
 

@@ -82,9 +82,10 @@ class CreateStaffCommandTest extends TestCase
         $this->assertSame(0, User::query()->count());
     }
 
-    public function test_existing_email_is_rejected(): void
+    /** Имейлът е уникален в рамките на фирмата (27.11.2026). */
+    public function test_existing_email_in_the_same_company_is_rejected(): void
     {
-        User::factory()->create(['email' => self::EMAIL]);
+        User::factory()->for($this->company)->create(['email' => self::EMAIL]);
 
         $this->artisan('pms:create-staff')
             ->expectsQuestion('ЕИК на фирмата', '000000000')
@@ -92,6 +93,15 @@ class CreateStaffCommandTest extends TestCase
             ->assertFailed();
 
         $this->assertSame(1, User::query()->count());
+    }
+
+    public function test_the_same_email_in_another_company_is_accepted(): void
+    {
+        User::factory()->create(['email' => self::EMAIL]); // друга фирма
+
+        $this->runCommand()->assertSuccessful();
+
+        $this->assertSame(1, User::query()->where('company_id', $this->company->id)->where('email', self::EMAIL)->count());
     }
 
     public function test_short_or_mismatched_password_is_rejected(): void
@@ -113,6 +123,7 @@ class CreateStaffCommandTest extends TestCase
     {
         $this->runCommand()->assertSuccessful();
 
+        $this->onAddressOf($this->company); // адресът на тестовете е на фирмата (27.11.2026)
         $this->post('/login', ['email' => self::EMAIL, 'password' => self::PASSWORD]);
 
         $this->get('/dashboard')->assertRedirect('/two-factor/setup');

@@ -40,15 +40,15 @@ class FortifyServiceProvider extends ServiceProvider
             ->line(__('mail.reset.intro', ['app' => config('app.name')]))
             ->action(__('mail.reset.action'), url(route('password.reset', [
                 'token' => $token,
-                'email' => $notifiable->getEmailForPasswordReset(),
+                'email' => $notifiable->email, // в адреса — само имейлът; ключът на връзката е с фирмата (27.11.2026)
             ], false)))
             ->line(__('mail.reset.expires', ['count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire')]))
             ->line(__('mail.reset.not_you'))
             ->salutation(__('mail.reset.salutation', ['app' => config('app.name')])));
 
         Fortify::authenticateUsing(function (Request $request) {
-            // Никой не е влязъл, затова филтърът по фирма не пречи. Имейлът е уникален.
-            $user = User::query()->where('email', $request->input('email'))->first();
+            // Само профилите на фирмата на адреса (27.11.2026): имейлът е уникален в рамките на фирмата.
+            $user = \App\Support\CompanyAddress::constrain(User::query()->withoutGlobalScopes(), $request)->where('email', $request->input('email'))->first();
 
             if (! $user || ! Hash::check((string) $request->input('password'), $user->password)) {
                 return null; // общото съобщение „грешен имейл или парола“

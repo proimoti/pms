@@ -59,4 +59,14 @@ class User extends Authenticatable
     {
         return in_array($this->role, [Role::AppAdmin, Role::Staff], true);
     }
+
+    /**
+     * Ключът на връзката за нова парола (27.11.2026): имейлът е уникален в рамките
+     * на фирмата, затова ключът е „фирма|имейл“ — връзка, поискана в една фирма,
+     * не пипа профила със същия имейл в друга.
+     */
+    public function getEmailForPasswordReset(): string
+    {
+        return ($this->company_id ?? 'admin').'|'.$this->email;
+    }
 }

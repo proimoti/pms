@@ -136,11 +136,15 @@ class MailGuardTest extends TestCase
     {
         // Средата е „testing“ (също не е production), за да мине формата без CSRF ключ.
         $this->guard('testing', null);
-        $this->post('/forgot-password', ['email' => User::factory()->tenant()->create(['email' => 'first@example.test'])->email]);
+        $first = User::factory()->tenant()->create(['email' => 'first@example.test']);
+        $this->onAddressOf($first->company); // адресът на тестовете е на фирмата (27.11.2026)
+        $this->post('/forgot-password', ['email' => $first->email]);
         $this->assertSame([], $this->sent());
 
         $this->guard('testing', self::REDIRECT);
-        $this->post('/forgot-password', ['email' => User::factory()->tenant()->create(['email' => 'second@example.test'])->email]);
+        $second = User::factory()->tenant()->create(['email' => 'second@example.test']);
+        $this->onAddressOf($second->company);
+        $this->post('/forgot-password', ['email' => $second->email]);
         [$email] = $this->sent();
         $this->assertSame([self::REDIRECT], $this->addresses($email->getTo()));
         $this->assertStringStartsWith('[ТЕСТ', $email->getSubject());

@@ -50,6 +50,7 @@ class TwoFactorTest extends TestCase
     public function test_staff_sets_up_the_second_factor_with_a_code_from_the_phone(): void
     {
         $user = User::factory()->create(['password' => self::PASSWORD]);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
         $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()]);
 
         $this->post('/user/two-factor-authentication')->assertSessionHasNoErrors();
@@ -66,6 +67,7 @@ class TwoFactorTest extends TestCase
     public function test_after_password_staff_with_second_factor_must_enter_the_code(): void
     {
         $user = User::factory()->withTwoFactor($this->secret())->create(['password' => self::PASSWORD]);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $this->post('/login', ['email' => $user->email, 'password' => self::PASSWORD])
             ->assertRedirect('/two-factor-challenge');
@@ -77,6 +79,7 @@ class TwoFactorTest extends TestCase
     {
         $secret = $this->secret();
         $user = User::factory()->withTwoFactor($secret)->create(['password' => self::PASSWORD]);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $this->post('/login', ['email' => $user->email, 'password' => self::PASSWORD]);
         $this->post('/two-factor-challenge', ['code' => $this->codeFor($secret)])
@@ -88,6 +91,7 @@ class TwoFactorTest extends TestCase
     public function test_wrong_code_does_not_log_in(): void
     {
         $user = User::factory()->withTwoFactor($this->secret())->create(['password' => self::PASSWORD]);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $this->post('/login', ['email' => $user->email, 'password' => self::PASSWORD]);
         $this->post('/two-factor-challenge', ['code' => '000000']);
@@ -100,6 +104,7 @@ class TwoFactorTest extends TestCase
         $user = User::factory()
             ->withTwoFactor($this->secret(), [self::RECOVERY_CODE])
             ->create(['password' => self::PASSWORD]);
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $this->post('/login', ['email' => $user->email, 'password' => self::PASSWORD]);
         $this->post('/two-factor-challenge', ['recovery_code' => self::RECOVERY_CODE]);
@@ -115,6 +120,7 @@ class TwoFactorTest extends TestCase
     public function test_staff_cannot_switch_off_the_second_factor(): void
     {
         $user = User::factory()->withTwoFactor($this->secret())->create();
+        $this->onAddressOf($user->company); // адресът на тестовете е на фирмата (27.11.2026)
 
         $this->actingAs($user)
             ->withSession(['auth.password_confirmed_at' => time()])

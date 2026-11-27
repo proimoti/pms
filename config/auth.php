@@ -63,7 +63,7 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            'driver' => 'company-address', // само профилите на фирмата на адреса (27.11.2026)
             'model' => env('AUTH_MODEL', User::class),
         ],
 
