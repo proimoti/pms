@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 
 /**
  * Запомнени устройства за портала (27.11.2026): след вярен код по имейл
- * устройството се помни 30 дни и при вход от него код не се иска. В базата
+ * устройството се помни 180 дни (28.11.2026) и при вход от него код не се иска. В базата
  * е само отпечатъкът (sha256) на бисквитката. При спиране на достъпа всички
  * устройства на профила се забравят.
  */
@@ -18,7 +18,7 @@ final class TrustedDevices
 {
     public const COOKIE = 'portal_device';
 
-    public const DAYS = 30;
+    public const DAYS = 180;
 
     public static function isTrusted(User $user, Request $request): bool
     {

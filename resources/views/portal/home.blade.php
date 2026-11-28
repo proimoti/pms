@@ -20,7 +20,10 @@
     @if ($owners->isNotEmpty())
         <h2>{{ __('portal.home.as_owner') }}</h2>
         @foreach ($owners as $owner)
-            <div class="card">{{ $owner->name }}</div>
+            <a href="/portal/owners/{{ $owner->id }}" class="card" style="display: block; color: inherit; text-decoration: none;">
+                <strong>{{ $owner->name }}</strong>
+                <div style="color: var(--accent);">{{ __('portal.owner.open') }} →</div>
+            </a>
         @endforeach
     @endif
 @endsection

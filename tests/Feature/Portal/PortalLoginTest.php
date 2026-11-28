@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 /**
  * Вход в портала (план „Портал и служители“, 27.11.2026): след паролата —
- * код по имейл при ново устройство; устройството се помни 30 дни.
+ * код по имейл при ново устройство; устройството се помни 180 дни (28.11.2026).
  * Приложението на телефона е по избор: който го е включил, ползва него.
  * После — /portal, с бранда на фирмата, без менюто на служителите.
  * Архивиран запис спира достъпа. Само измислени данни.
@@ -171,9 +171,11 @@ class PortalLoginTest extends TestCase
 
     // --- Запомнено устройство ---
 
-    public function test_the_device_is_remembered_for_30_days(): void
+    public function test_the_device_is_remembered_for_180_days(): void
     {
-        $response = $this->loginWithCode();
+        $this->login();
+        $this->get('/login/code')->assertOk()->assertSee('Това устройство ще се помни 180 дни.');
+        $response = $this->post('/login/code', ['code' => $this->mailedCode()]);
         $cookie = $response->getCookie('portal_device', false);
         $this->assertNotNull($cookie);
         $this->post('/logout');
@@ -185,7 +187,10 @@ class PortalLoginTest extends TestCase
         Mail::assertNothingSent();
 
         $this->post('/logout');
-        $this->travel(31)->days();
+        $this->travel(179)->days();
+        $this->login()->assertRedirect('/portal');
+        $this->post('/logout');
+        $this->travel(2)->days();
         $this->login()->assertRedirect('/login/code');
         $this->assertGuest();
     }

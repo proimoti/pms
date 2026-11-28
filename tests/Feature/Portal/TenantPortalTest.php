@@ -136,6 +136,23 @@ class TenantPortalTest extends ScreenTestCase
             ->assertDontSee('№ 604')->assertDontSee('№ '.$this->otherLease->number.' ', false);
     }
 
+    public function test_a_contract_whose_properties_were_all_removed_by_annex_ends_the_day_before(): void
+    {
+        // Анекс маха единствения имот от днес (10.01.2027): последният ден е 09.01.2027, а днес договорът е приключил (28.11.2026).
+        $this->actingAs($this->staffUser);
+        $property = $this->record(Property::class, ['number' => 605, 'city' => 'Измисленово']);
+        app(\App\Services\OwnerContractService::class)->create(['type' => OwnerContractType::Own, 'signed_on' => '2026-01-01',
+            'lines' => [['property_id' => $property->id]]]);
+        $lease = app(LeaseContractService::class)->create(['tenant_id' => $this->tenant->id, 'signed_on' => '2026-06-01',
+            'lines' => [['property_id' => $property->id, 'rent' => '100', 'deposit' => '0']]]);
+        app(LeaseContractService::class)->applyAnnex($lease, ['signed_on' => '2027-01-05', 'from' => '2027-01-10',
+            'lines' => [['action' => 'remove', 'property_id' => $property->id]]]);
+        auth()->logout();
+
+        $this->assertMatchesRegularExpression('#№ '.$lease->number.'\D.{0,300}?'.__('portal.tenant.states.ended').'.{0,300}?'
+            .preg_quote(__('portal.tenant.period_to', ['to' => '09.01.2027']), '#').'#su', $this->page()->getContent());
+    }
+
     // --- Дължи / Надплатено ---
 
     public function test_owes_in_total_and_per_contract(): void

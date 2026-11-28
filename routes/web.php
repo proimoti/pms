@@ -42,6 +42,7 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePortalClient::class])->gro
     Route::get('portal', [\App\Http\Controllers\Portal\PortalController::class, 'home'])->name('portal');
     Route::get('portal/logo', [\App\Http\Controllers\Portal\PortalController::class, 'logo'])->name('portal.logo');
     Route::get('portal/tenants/{tenant}', [\App\Http\Controllers\Portal\TenantPortalController::class, 'show'])->whereNumber('tenant')->name('portal.tenant');
+    Route::get('portal/owners/{owner}', [\App\Http\Controllers\Portal\OwnerPortalController::class, 'show'])->whereNumber('owner')->name('portal.owner');
     Route::get('portal/statements/{statement}/pdf', [\App\Http\Controllers\Portal\TenantPortalController::class, 'pdf'])->whereNumber('statement')->name('portal.statement.pdf');
 });
 

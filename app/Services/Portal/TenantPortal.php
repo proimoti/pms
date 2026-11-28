@@ -72,7 +72,7 @@ final class TenantPortal
         return $first === null ? null : CarbonImmutable::parse($first)->startOfDay();
     }
 
-    /** Краят: прекратяването, иначе краят на последния имот; null — без срок. */
+    /** Последният ден: денят преди прекратяването или преди края на последния имот („до“ е без него); null — без срок. */
     public function endsOn(LeaseContract $lease): ?CarbonImmutable
     {
         if ($lease->terminated_on !== null) {
@@ -82,7 +82,7 @@ final class TenantPortal
             return null;
         }
 
-        return CarbonImmutable::parse($lease->lines->max('valid_to'))->startOfDay();
+        return CarbonImmutable::parse($lease->lines->max('valid_to'))->subDay()->startOfDay();
     }
 
     /** @return 'active'|'upcoming'|'ended' */
