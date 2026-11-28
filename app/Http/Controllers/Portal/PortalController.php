@@ -25,7 +25,11 @@ class PortalController extends Controller
         $owners = DB::table('owners')->where('company_id', $user->company_id)->whereNull('archived_at')
             ->whereIn('id', (clone $links)->whereNotNull('owner_id')->select('owner_id'))->orderBy('name')->get(['id', 'number', 'name']);
 
-        return view('portal.home', ['tenants' => $tenants, 'owners' => $owners]);
+        // „Дължи / Надплатено“ на всеки наемател (27.11.2026).
+        $portal = app(\App\Services\Portal\TenantPortal::class);
+        $owes = $portal->tenants($user)->mapWithKeys(fn ($tenant) => [$tenant->id => $portal->owes($tenant)['total']])->all();
+
+        return view('portal.home', ['tenants' => $tenants, 'owners' => $owners, 'owes' => $owes]);
     }
 
     /** Логото на фирмата за заглавието на портала. */

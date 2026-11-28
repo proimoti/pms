@@ -41,6 +41,8 @@ Route::post('login/code/resend', [\App\Http\Controllers\Portal\LoginCodeControll
 Route::middleware(['auth', \App\Http\Middleware\EnsurePortalClient::class])->group(function () {
     Route::get('portal', [\App\Http\Controllers\Portal\PortalController::class, 'home'])->name('portal');
     Route::get('portal/logo', [\App\Http\Controllers\Portal\PortalController::class, 'logo'])->name('portal.logo');
+    Route::get('portal/tenants/{tenant}', [\App\Http\Controllers\Portal\TenantPortalController::class, 'show'])->whereNumber('tenant')->name('portal.tenant');
+    Route::get('portal/statements/{statement}/pdf', [\App\Http\Controllers\Portal\TenantPortalController::class, 'pdf'])->whereNumber('statement')->name('portal.statement.pdf');
 });
 
 // „Задай парола“ по покана (27.11.2026): без вход, с ограничение на опитите.
